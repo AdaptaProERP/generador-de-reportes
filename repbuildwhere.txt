@@ -1,0 +1,241 @@
+// Programa   : REPBUILDWHERE
+// Fecha/Hora : 14/03/2004 18:04:27
+// Prop¢sito  : Genera el C¢digo Sql de ejecuci¢n
+// Creado Por : Juan Navas
+// Llamado por: TGENREP
+// Aplicaci¢n : Generador de Informes
+// Tabla      : DPREPORTES
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep,cWhere)
+
+  LOCAL cWhere:="",cExp:="",cOperator
+  LOCAL oRun,I,oRgo,oCri,nAt
+  LOCAL lEmpty,lLink
+  LOCAL cAnd:=""
+  LOCAL cOr :=""
+  LOCAL uValIni,uValFin,uValue
+  LOCAL aWhere:={},cWhereRgo:="",cWhereCri:="",oFile
+  LOCAL aTablas:={}
+
+  IF ValType(oGenRep)!="O"
+     Return ""
+  ENDIF
+
+  AEVAL(oGenRep:aLinks,{|a,n| AADD(aTablas,a[1])})
+
+  oRun :=oGenRep:oRun
+  lLink:=(LEN(oGenRep:aLinks)>0)
+  
+  // RANGO
+
+  FOR I=1 TO LEN(oRun:aRango)
+
+    oRgo  :=oRun:aRango[I,5]
+   
+    lEmpty:=.F.
+    cExp  :=""
+   
+    IF oRgo!=NIL .AND. EMPTY(oRun:aRango[I,2]) .AND. EMPTY(oRun:aRango[I,3]) .AND. !oRgo:lEmpty
+       lEmpty:=.T.
+    ENDIF
+
+    // No hace Filtro con Par metros
+    IF oRgo<>NIL .AND. "@"$oRgo:cField
+       lEmpty:=.T.
+    ENDIF
+
+    IF oRgo<>NIL .AND. oRgo:cType="L" .AND. ValType(oRun:aRango[i,2])="L"
+       lEmpty:=.F.
+    ENDIF
+   
+    IF !lEmpty .AND. oRgo!=NIL
+
+      oRgo:=oRun:aRango[I,5]
+
+      // ? I,oRun:aRango[I,2],oRun:aRango[I,3],oRgo:ClassName(),oRun:aRango[I,4]
+      uValIni:=oRun:aRango[i,2]
+      uValFin:=oRun:aRango[i,3]
+
+      IF ValType(uValIni)="C" // Recorta Valores
+        uValIni:=LEFT(uValIni,oRgo:nLen)
+        uValFin:=LEFT(uValFin,oRgo:nLen)
+      ENDIF
+
+      cExp:=alltrim(oRgo:cField)
+      cExp:=IIF(lLink,alltrim(oRgo:cTable)+".","")+cExp
+      cExp:="("+GetWhereAnd(cExp,uValIni,uValFin)+")"
+
+//      IF uValIni=uValFin
+//         cExp:="("+cExp+GetWhere("=",uValIni,NIL,.T.)+")"
+//      ELSE
+//         cExp:="("+cExp+GetWhere(">=",uValIni,NIL,.T.)+" AND "+cExp+GetWhere("<=",uValFin,NIL,.T.)+")"
+//      ENDIF
+      
+      AADD(aWhere,{oRgo:cField,cExp,oRun:aRango[I,4],"RGO"})
+
+      IF ALLTRIM(UPPE(oRun:aRango[I,4]))="AND"
+        cAnd:=cAnd +IIF(Empty(cAnd),""," AND ")+ cExp
+      ELSE
+        cOr :=cOr +IIF(Empty(cOr ),""," OR ") +cExp
+      ENDIF
+
+    ENDIF
+
+  NEXT I
+  
+  cOr:=IIF(!Empty(cAnd).AND.!Empty(cOr)," OR ", "" )+cOr
+
+  // CRITERIO
+
+  FOR I=1 TO LEN(oRun:aCriterio)
+
+    oCri :=oRun:aCriterio[I,5]
+    cExp :=ALLTRIM(oRun:aCriterio[I,2])
+    nAt  :=AT(" ",cExp)
+    cExp :=LEFT(cExp,nAt)
+
+    PUBLICO("RGO_O"+LSTR(I),cExp)
+    PUBLICO("CRI_O"+LSTR(I),cExp)
+
+    lEmpty:=.F.
+    cExp  :=""
+   
+    IF oCri!=NIL .AND. EMPTY(oRun:aCriterio[I,3]) .AND. !oCri:lEmpty
+       lEmpty:=.T.
+    ENDIF
+
+    IF oCri<>NIL .AND. oCri:cType="L" .AND. ValType(oRun:aCriterio[i,3])="L"
+       lEmpty:=.F.
+    ENDIF
+
+    // No hace Filtro con Par metros
+    IF oCri<>NIL .AND. "@"$oCri:cField
+       lEmpty:=.T.
+    ENDIF
+
+    IF !lEmpty .AND. oCri!=NIL
+
+      oCri:=oRun:aCriterio[I,5]
+
+      cOperator:=oRun:aCriterio[i,2]
+      uValue   :=oRun:aCriterio[i,3]
+      cOperator:=IF(Empty(cOperator)," =",cOperator)
+      cOperator:=IF(AT(" ",cOperator)>0,Left(cOperator,AT(" ",cOperator)),cOperator)
+
+      IF Empty(cOperator)
+         cOperator:="="
+      ENDIF
+
+      /*
+      // JN 22/11/2016, Si el Operador "AND/OR" criterio va vacio, asume AND
+      */
+      IF Empty(oRun:aCriterio[I,4])
+         oRun:aCriterio[I,4]:="AND"
+      ENDIF
+
+      IF ValType(uValue)="C" // Recorta Valores
+        uValue:=LEFT(uValue,oCri:nLen)
+      ENDIF
+
+      cExp:=alltrim(oCri:cField)
+      cExp:=IIF(lLink,alltrim(oCri:cTable)+".","")+cExp
+      cExp:="("+cExp+GetWhere(cOperator,uValue,NIL,.T.)+")"
+
+      AADD(aWhere,{oCri:cField,cExp,oRun:aCriterio[I,4],"CRI"})
+
+      IF ALLTRIM(UPPE(oRun:aCriterio[I,4]))="AND"
+        cAnd:=cAnd +IIF(Empty(cAnd),""," AND ")+ cExp
+      ELSE
+        cOr :=cOr +IIF(Empty(cOr ),""," OR ") +cExp
+      ENDIF
+
+    ENDIF
+
+  NEXT I
+
+  AADD(aTablas,ALLTRIM(oGenRep:REP_TABLA))
+
+// ViewArray(aWhere)
+
+  IF !Empty(aWhere)
+    aWhere:=EJECUTAR("REPWHEREOPTZ",aWhere,aTablas) // oGenRep:REP_TABLA)
+  ENDIF
+
+  /*
+  // Aqui se Arma en nuevo Where Optimizado, Separado Rango y Criterio
+  */
+
+  cWhere:=""
+
+  cWhereRgo:=""
+  cWhereCri:=""
+
+  FOR I=1 TO LEN(aWhere)
+
+     IF "CRI"$aWhere[I,4]
+
+       cWhereCri:=cWhereCri + IIF( !Empty(cWhereCri) .AND. I>1 , " "+UPPE(aWhere[I,3])+" " , "" )+;
+                 aWhere[I,2]
+
+     ELSE
+
+       cWhereRgo:=cWhereRgo + IIF( !Empty(cWhereRgo) .AND. I>1 , " "+UPPE(aWhere[I,3])+" " , "" )+;
+                  aWhere[I,2]
+
+     ENDIF
+
+  NEXT I
+
+  IF !Empty(cWhereRgo) .AND. Empty(cWhereCri)
+     cWhere:="("+cWhereRgo+")"
+  ENDIF
+
+  IF !Empty(cWhereCri) .AND. Empty(cWhereRgo)
+     cWhere:="("+cWhereCri+")"
+  ENDIF
+
+  IF !Empty(cWhereRgo) .AND. !Empty(cWhereCri)
+     cWhere:="("+cWhereRgo+") "+oGenRep:cRgoCriAndOr+" ("+cWhereCri+")"
+  ENDIF
+
+  IF !Empty(cWhere)
+     cWhere:=" WHERE "+cWhere
+  ENDIF
+
+//? cWhere
+
+  IF !Empty(oGenRep:cScope)
+      cWhere:=" "+cWhere+" "
+      cWhere:=STRTRAN(cWhere," WHERE ","")
+      cWhere:=" WHERE ("+oGenRep:cScope+") " +IIF( Empty(cWhere) , "" ," AND ") + cWhere
+  ENDIF
+
+  /*
+  // Para Monitorear sus Resultados, grabamos en disco los Datos del Ultimo Informe
+  */
+
+IF .F.
+ // JN 13/12/2013
+  oFile:=TFILE():New( "REPORTE.LOG", NIL )
+  oFile:PutStr( "REPORTE:"+oGenRep:REP_CODIGO+" Fecha:"+DTOC(oDp:dFecha)+" Hora:"+TIME()+CRLF )
+  oFile:PutStr( REPLICATE("-",132)+CRLF)
+  oFile:PutStr( "TABLA  : "+oGenRep:REP_TABLA+CRLF)
+  oFile:PutStr( "WHERE  : "+cWhere +CRLF )
+
+  IF LEN(aWhere)>0
+
+    oFile:PutStr( REPLICATE("-",132)+CRLF)
+    oFile:PutStr( "INDICE : "+IIF( Empty(aWhere[1,4]),"NINGUNO" , aWhere[1,4]) +CRLF )
+    oFile:PutStr( "CLAVE  : "+IIF( Empty(aWhere[1,5]),"NINGUNA" , aWhere[1,5]) +CRLF )
+    oFile:PutStr( REPLICATE("-",132)+CRLF)
+
+  ENDIF
+
+  oFile:Close()
+
+ENDIF
+
+RETURN cWhere
+// EOF

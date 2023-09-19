@@ -1,0 +1,85 @@
+// Programa   : DPREPORTIMPORT
+// Fecha/Hora : 23/04/2014 01:48:21
+// Propósito  : Importar Reportes desde Otro Diccionario de Datos
+// Creado Por : Juan Navas
+// Llamado por: REPORTE()
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cCodigo)
+   LOCAL cCodigo,cFileDbf,oTable,cGrupo,cFileGru
+
+   DEFAULT cCodigo:="VARIAC_PRE"
+
+   IF Empty(oDp:cFileSource)
+      RETURN .F.
+   ENDIF
+
+   cCodigo:=ALLTRIM(UPPE(cCodigo))
+
+   cFileDbf:=oDp:cFileSource+"DATADBF\DPREPORTES.DBF"
+   cFileGru:=oDp:cFileSource+"DATADBF\DPGRUREP.DBF"
+
+   IF !FILE(cFileDbf)
+      RETURN .F.
+   ENDIF
+     
+   USE (cFileDbf) EXCLU
+   SET FILTER TO ALLTRIM(REP_CODIGO)==cCodigo
+   GO TOP
+
+   cGrupo:=REP_GRUPO
+   CLOSE ALL
+
+   // Copia el Grupo para Evitar Incidencias de Integridad Referencial
+   IF !Empty(cGrupo)
+      USE (cFileGru) EXCLU
+      SET FILTER TO ALLTRIM(GRR_CODIGO)==cGrupo
+      GO TOP
+
+      IF !EMPTY(GRR_CODIGO)
+
+         oTable:=OpenTable("SELECT * FROM DPGRUREP WHERE GRR_CODIGO"+GetWhere("=",cGrupo),.T.)
+
+         IF oTable:RecCount()=0
+           AEVAL(dbstruct(),{|a,n,nAt|oTable:Replace(FieldName(n),FieldGet(n))})
+           oTable:Replace("PRG_FECHA",DPFECHA())
+          oTable:Commit()
+         ENDIF
+
+         oTable:End()
+
+      ENDIF
+
+   ENDIF
+
+   CLOSE ALL
+
+   USE (cFileDbf) EXCLU
+
+   SET FILTER TO ALLTRIM(REP_CODIGO)==cCodigo
+
+   GO TOP
+
+   IF !EMPTY(REP_CODIGO)
+
+      oTable:=OpenTable("SELECT * FROM DPREPORTES WHERE REP_CODIGO"+GetWhere("=",cCodigo),.T.)
+
+      IF oTable:RecCount()=0
+        AEVAL(dbstruct(),{|a,n,nAt|oTable:Replace(FieldName(n),FieldGet(n))})
+        oTable:Replace("PRG_FECHA",DPFECHA())
+        oTable:Commit()
+      ENDIF
+
+      oTable:End()
+
+   ENDIF
+
+   CLOSE ALL
+
+RETURN NIL
+// EOF
+
+

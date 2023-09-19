@@ -1,0 +1,51 @@
+// Programa   : REPBUILDSQL
+// Fecha/Hora : 14/03/2004 18:04:27
+// Prop¢sito  : Genera el C¢digo Sql de ejecuci¢n
+// Creado Por : Juan Navas
+// Llamado por: TGENREP
+// Aplicaci¢n : Generador de Informes
+// Tabla      : DPREPORTES
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep,cWhere)
+  LOCAL cSql:="",cOrderBy
+
+  cOrderBy:=oGenRep:cSqlOrderBy
+
+  IF !EMPTY(oGenRep:cOrderRupt)
+     cOrderBy:=STRTRAN(cOrderBy," BY "," BY  "+oGenRep:cOrderRupt)
+     IF EMPTY(cOrderBy)
+         cOrderBy:=" ORDER BY "+oGenRep:cOrderRupt
+     ENDIF
+  ENDIF
+
+  cSql:=oGenRep:cSqlSelect+" "+CRLF
+  cSql:=cSql+" "+oGenRep:cSqlInnerJoin+" "+CRLF
+  cSql:=cSql+" "+ALLTRIM(oGenRep:cWhere)
+
+  IF !Empty(oGenRep:cScope)
+
+     IF " WHERE "$cSql
+        cSql:=cSql+" AND ("+oGenRep:cScope+")"
+     ELSE
+        cSql:=cSql+" WHERE "+oGenRep:cScope
+     ENDIF
+
+  ENDIF
+  
+  IF (oGenRep:lGroupBy .OR. oGenRep:lSum) .AND. !Empty(oGenRep:cSqlGroupBy)
+    cSql:=cSql+" GROUP BY "+oGenRep:cSqlGroupBy+" "+CRLF
+  ENDIF
+ 
+  cSql:=cSql+" "+cOrderBy
+
+// ? cSql,oGenRep:cSqlGroupBy,"GROUP",oGenRep:cSelect
+
+  oGenRep:cSql:=ALLTRIM(cSql)
+
+//  ? CHKSQL(cSql),CLPCOPY(cSql)
+// AUDITAR("DIMP" , NIL , oGenRep:REP_TABLA , "Reporte: "+oGenRep:REP_CODIGO  )
+
+RETURN cSql
+// EOF

@@ -1,0 +1,48 @@
+// Programa   : REPCLONE
+// Fecha/Hora : 08/06/2023 10:22:30
+// Propósito  :
+// Creado Por :
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cCodRep,cCodDes,cDescri)
+  LOCAL oTableO,oTableD,aFiles:={},I,cFileO,cFileD
+  
+  DEFAULT cCodRep:="DOCCXC",;
+          cCodDes:="DOCCXC_DEB",;
+          cDescri:="Nota de Débito"
+
+  IF ISSQLFIND("DPREPORTES","REP_CODIGO"+GetWhere("=",cCodDes))
+    RETURN .T.
+  ENDIF
+
+  oTableO:=OpenTable("SELECT * FROM DPREPORTES WHERE REP_CODIGO"+GetWhere("=",cCodRep),.T.)
+  oTableD:=OpenTable("SELECT * FROM DPREPORTES",.F.)
+
+  AEVAL(oTableD:aFields,{|a,n| oTableD:Replace(a[1],oTableO:FieldGet(n))})
+
+  oTableD:Replace("REP_CODIGO",cCodDes)
+  oTableD:Replace("REP_DESCRI",cDescri)
+
+  oTableD:Commit("")
+  oTableO:End()
+  oTableD:End()
+
+  aFiles:=DIRECTORY("REPORT\"+cCodRep+".*")
+
+  FOR I=1 TO LEN(aFiles)
+
+     cFileO:="REPORT\"+aFiles[I,1]
+     cFileD:="REPORT\"+cCodDes+"."+cFileExt(aFiles[I,1])
+
+     COPY FILE (cFileO) TO (cFileD)
+
+  NEXT I
+
+// ViewArray(aFiles)
+RETURN .T.
+// EOF
+

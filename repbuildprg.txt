@@ -1,0 +1,286 @@
+// Programa   : REPBUILDPRG
+// Fecha/Hora : 14/03/2004 10:37:36
+// Prop¢sito  : Crear C¢digo PRG del Informe
+// Creado Por : Juan Navas
+// Llamado por: TGENREP
+// Aplicaci¢n : Generador de Informes
+// Tabla      : DPREPORT
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep)
+  LOCAL oCol,I,oRup
+  LOCAL cMemo:="",cTab:=SPACE(5),cCol,cRup,cGroup,cGroupP
+  LOCAL cCols:="" // Columnas
+  LOCAL cFileScr,cAling:=""
+  LOCAL cMemos:="" // Lista de Campos Memos
+  LOCAL oGenCol
+  LOCAL lEdit    :=.F.
+  LOCAL cExp     :="",cExp2:="",cExp3:=""
+  LOCAL cTotal   :=""
+  LOCAL cSize    :=""
+  LOCAL cEmpty2  :=""  // Condici¢n para no Imprimir 2dos Campos
+  LOCAL cEmpty3  :=""  // Condici¢n para no Imprimir 3dos Campos
+  LOCAL cNoEmpty2:=""  // Imprimir si no est  Vacio
+  LOCAL cNoEmpty3:=""  // Imprimir si no est  Vacio
+  LOCAL cOption  :=""  // Opciones de los Campos
+  LOCAL aValues  :=""  
+
+  IF oGenRep=NIL
+     RETURN NIL
+  ENDIF
+
+  oDp:cFileChm  :=GetFileChm("DPREPORTES")
+  oDp:cHelpTopic:="CREAR"
+
+  IF !Empty(oGenRep:cMemo) .AND. !MsgNoYes("Desea Generar Nuevamente el C¢digo Fuente ";
+           ,"C¢digo Fuente ya Existe, Reporte "+oGenRep:REP_CODIGO)
+
+     RETURN .F.    
+  ENDIF
+
+  oGenRep:GetSql() // Aqui Genera el C¢digo SQL
+
+  cFileScr:=STRTRAN(oGenRep:cFileIni,".REP",".SRE")
+
+  cMemo   :=MEMOREAD("FORMS\DEFAULT.REP")
+
+  cMemo   :=STRTRAN(cMemo,"<REPORT>","// Reporte Creado Autom ticamente por Datapro " +CRLF+;
+                                     "// Fecha      : "+DTOC(DATE())+ " Hora: "+TIME()+CRLF+;
+                                     "// Aplicaci¢n : "+oGenRep:REP_APLICA+CRLF+;
+                                     "// Tabla      : "+oGenRep:REP_TABLA +CRLF)
+
+  cMemo   :=STRTRAN(cMemo,"<TITLE>",ALLTRIM(oGenRep:REP_DESCRI))
+  cMemo   :=STRTRAN(cMemo,"<TABLE>",ALLTRIM(oGenRep:REP_TABLA ))
+
+  IF Empty(oGenRep:aCols)
+     MsgInfo("No Tiene Columnas","Reporte "+oGenRep:REP_CODIGO)
+     lEdit:=.T.
+  ENDIF
+
+  oGenCol:=TREPCOLS():NEW(oGenRep,lEdit)
+  oGenCol:BuildTCol()  // Construye cada Columna
+
+  FOR I=1 TO LEN(oGenRep:aCols)
+
+     oCol:=oGenRep:aCols[I,7]
+
+     IF ValType(oCol)!="O"
+        EXIT
+     ENDIF
+
+     cAling:="LEFT "
+     cAling:=IIF(oCol:nAling=1,"RIGHT  ",cAling)
+     cAling:=IIF(oCol:nAling=2,"CENTER ",cAling)
+     cExp  :=ALLTRIM(oCol:cExp)
+     cExp2 :=ALLTRIM(oCol:cExp2)
+     cExp3 :=ALLTRIM(oCol:cExp3)
+     cTotal:=""
+     cSize :=""
+     cExp  :=GetCampoOpc(oGenRep,cExp)
+
+     IF oCol:nAling=2 .AND. "ALLTRIM("$cExp // Center Requiere Alltrim
+        cExp:="ALLTRIM("+cExp+")"
+     ENDIF
+
+     IF oCol:cType$"DN" .AND. !"TRAN"$cExp .AND. !EMPTY(oCol:cPicture) // Center Requiere Alltrim
+        cExp:=cExp+";"+CRLF+;
+              cTab+SPACE(7)+"PICTURE "+["]+ALLTRIM(oCol:cPicture)+["]
+     ENDIF
+
+     IF oCol:cType="L" .AND. EMPTY(oCol:cPicture) .AND. !"("$cExp
+        cExp:=[IIF(]+cExp+[,"Si","No")]
+     ENDIF
+
+     IF !Empty(cExp2)
+
+        cEmpty2  :=cEmpty2+IIF(EMPTY(cEmpty2),""," .AND. ")+"EMPTY("+cExp2+")"
+        cNoEmpty2:=cNoEmpty2+IIF(Empty(cNoEmpty2),"",CRLF)+;
+                   "     oReport:Say("+ALLTRIM(STR(I))+","+cExp2+")"
+        cExp2    :=",;"+CRLF+cTab+SPACE(12)+cExp2
+
+     ENDIF
+
+     IF !Empty(cExp3) // Era L¡nea Adicional
+        cEmpty3  :=cEmpty3  +IIF(EMPTY(cEmpty3  ),""," .AND. ")+"EMPTY("+cExp3+")"
+        cNoEmpty3:=cNoEmpty3+IIF(Empty(cNoEmpty3),"",CRLF)+;
+                   "     oReport:Say("+ALLTRIM(STR(I))+","+cExp3+")"
+        cExp3  :=",;"+CRLF+cTab+SPACE(12)+cExp3
+     ENDIF
+
+     cAling:=";"+CRLF+cTab+SPACE(7)+cAling // Alineaci¢n
+
+     IF !Empty(oCol:nSize)
+        cSize :=";"+CRLF+cTab+SPACE(7)+"SIZE "+ALLTRIM(STR(oCol:nSize))
+     ENDIF
+
+     IF oCol:lTotal .AND. oCol:cType="N" // Columna Totaliza
+        cTotal:=";"+CRLF+cTab+SPACE(7)+"TOTAL "
+        IF !" PICTURE "$cExp
+           cTotal:=cTotal+";"+CRLF+cTab+SPACE(7)+"PICTURE "+["]+ALLTRIM(oCol:cPicture)+["]
+        ENDIF
+        cTotal:=cTotal+";"+CRLF+cTab+SPACE(7)+"FONT 2 "
+     ENDIF
+
+     cCol:=cTab  +[COLUMN TITLE "]+ALLTRIM(oCol:cTitle1)+["]+;
+                   IIF(Empty(oCol:cTitle2),"",[,"]+ALLTRIM(oCol:cTitle2)+["])+";"+CRLF+;
+           cTab  + SPACE(7)+[DATA ]+;
+           cExp  +;
+           cExp2 +;
+           cExp3 +;
+           cTotal+;
+           cSize +;
+           cAling
+          
+     IF oCol:cType="M" // Campo Memo
+
+         cCol:=cTab+[COLUMN TITLE "]+ALLTRIM(oCol:cTitle1)+["]+;
+                   IIF(Empty(oCol:cTitle2),"",[,"]+ALLTRIM(oCol:cTitle2)+["])+";"+CRLF+;
+                   cTab+SPACE(7)+[DATA PrintMemo(]+cExp+[,3,.T.)]+cSize
+
+         cMemos:=cMemos+"PrintMemo("+ALLTRIM(oCol:cExp)+","+ALLTRIM(STR(I))+",.F.,2)"+CRLF
+
+     ENDIF
+
+     cCols:=cCols+CRLF+cCol+CRLF
+
+  NEXT I
+
+  IF !EMPTY(cEmpty2)
+
+     cEmpty2:=CRLF+;
+            "   IF !("+cEmpty2+")"+CRLF+;
+            "      oReport:StartLine()"+CRLF+;
+            " "+cNoEmpty2+CRLF+;
+            "      oReport:EndLine()"+CRLF+;
+            "   ENDIF"+CRLF
+
+  ENDIF
+
+  IF !EMPTY(cEmpty3) // 3era L¡nea de Datos
+
+     cEmpty3:=CRLF+;
+            "   IF !("+cEmpty3+")"+CRLF+;
+            "      oReport:StartLine()"+CRLF+;
+            " "+cNoEmpty3+CRLF+;
+            "      oReport:EndLine()"+CRLF+;
+            "   ENDIF"+CRLF
+
+/*
+//   cEmpty3:=CRLF+;
+//            "   IF "+cEmpty3+CRLF+;
+//            "      oReport:BackLine(1)"+" /"+"/ Si Est  Vacio, Retrocede la L¡nea"+CRLF+;
+//            "   ENDIF"+CRLF
+*/
+  ENDIF
+
+  cMemo   :=STRTRAN(cMemo,"<EMPTY>",cEmpty2+cEmpty3)
+  cMemo   :=STRTRAN(cMemo,"<COLUMN>",cCols)
+
+  /*
+  // Generaci¢n de Grupos
+  */
+  cGroup:=""
+
+  FOR I=1 TO LEN(oGenRep:aRuptura)
+
+    oRup:=oGenRep:aRuptura[I,3]
+
+//    cRup:=[      GROUP ON ]+oRup:cExp+[;]+CRLF+;
+//          [            HEADER "]+ALLTRIM(oRup:cTitle)+[:"+cValtoChar(]+oRup:cExp+[);]+CRLF+;
+//          [            FOOTER "Total ]+ALLTRIM(oRup:cTitle)+[: "+]+;
+//          "cValToChar(oReport:aGroups["+ALLTRIM(STR(I))+"]:cValue)+;"+CRLF+;
+//          "                  (ltrim(str(oReport:aGroups["+ALLTRIM(STR(I))+"]:nCounter)))"
+
+    cRup  :=[      GROUP ON ]+oRup:cExp+[;]+CRLF+;
+            [            FONT 2;]+CRLF+;
+            [            HEADER GROUP] +STRZERO(I,2)+[();]+CRLF+;
+            [            FOOTER ENDGRP]+STRZERO(I,2)+[()]
+
+    cGroup :=cGroup+CRLF+cRup+CRLF
+
+    cExp   :=GetCampoOpc(oGenRep,oRup:cExp)
+
+    IF ALLTRIM(cExp)=ALLTRIM(oRup:cExp) // No opciones
+        cExp:=[]+oRup:cExp+CRLF+;
+              [   uValue:=cValtoChar(uValue)]
+       // ? cExp,"cExp"
+    ELSE
+       // ? cExp,"cExp XXXX"
+       cExp:=cExp+CRLF+[   cValtoChar(uValue)]
+    ENDIF
+
+    cGroupP:=[/]+[*]+CRLF+;
+             [ Encabezado Grupo : ]+oRup:cTitle+CRLF+;
+             [*]+[/]+CRLF+;
+             [FUNCTION GROUP]+STRZERO(I,2)+[()]+CRLF+;
+             [   LOCAL cExp:="",uValue:=""]+CRLF+; 
+             [   cExp  :="]+ALLTRIM(oRup:cTitle)+[: "]+CRLF+;
+             [   uValue:=]+cExp+;
+             IIF(Empty(oRup:cRepres),[],[+" "+cValToChar(]+ALLTRIM(oRup:cRepres)+")")+CRLF+;
+             [RETURN cExp+uValue]
+
+    cMemo:=cMemo+CRLF+cGroupP+CRLF
+
+    cExp :=STRTRAN(cExp,oRup:cExp,"uValue")
+
+    cGroupP:=[/]+[*]+CRLF+;
+             [ Finalizar Grupo : ]+oRup:cTitle+CRLF+;
+             [*]+[/]+CRLF+;
+             [FUNCTION ENDGRP]+STRZERO(I,2)+[()]+CRLF+;
+             [   LOCAL cExp:="",uValue:="",cLines:=""]+CRLF+; 
+             [   cExp  :="Total ]+ALLTRIM(oRup:cTitle)+[:  "]+CRLF+;
+             "   uValue:=oReport:aGroups["+ALLTRIM(STR(I))+"]:cValue"+CRLF+;
+             [   uValue:=]+cExp+CRLF+;
+             "   cLines:=ltrim(str(oReport:aGroups["+ALLTRIM(STR(I))+"]:nCounter))"+CRLF+;
+             [   cLines:=" ("+cLines+")"]+CRLF+;
+             [RETURN cExp+uValue+cLines]
+
+    cMemo:=cMemo+CRLF+cGroupP+CRLF
+  
+  NEXT I
+
+  cMemo:=STRTRAN(cMemo,"<GROUP>",cGroup)
+
+  // Lista de Campos Memos
+  IF Empty(cMemos)
+     cMemos:=CRLF+" /"+"/ PrintMemo(CAMPOMEMO,1,.F.,1) /"+"/ Imprimir Campo Memo"+CRLF
+  ENDIF
+
+  cMemo   :=STRTRAN(cMemo,"<MEMOS>",cMemos)
+  cMemo   :=cMemo+CRLF+"// EOF "+CRLF
+
+  IF ValType(oGenRep:oMemo)="O"
+     oGenRep:oMemo:SetText(cMemo)
+  ENDIF
+
+  MemoWrit(cFileScr,cMemo)
+ 
+RETURN File(cFileScr)
+
+/*
+// Busca si el Campo tiene Opciones
+*/
+FUNCTION GetCampoOpc(oGenRep,cExp)
+   LOCAL cField:="",I,aFields,cTable,aValues:={}
+
+   aFields:=_VECTOR(cExp,"+")
+
+   IF !LEN(aFields)=1
+      RETURN cExp
+   ENDIF
+
+   cField:=aFields[1]
+
+   FOR I=1 TO LEN(oGenRep:aSelect)
+      IF oGenRep:aSelect[I,1]$cField
+        cTable :=oGenRep:aSelect[I,4]
+        aValues:=GetOptions(cTable,oGenRep:aSelect[i,3]) // Campos Con Opciones
+        IF !EMPTY(aValues)                               // Tiene Opci¢n
+            cExp:=[SAYOPTIONS("]+cTable+[","]+oGenRep:aSelect[i,3]+[",]+cExp+[)]
+        ENDIF
+      ENDIF
+   NEXT I
+   
+RETURN cExp
+// EOF

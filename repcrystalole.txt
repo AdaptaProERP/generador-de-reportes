@@ -1,0 +1,88 @@
+// Programa   : REPCRYSTALOLE
+// Fecha/Hora : 08/07/2016 02:05:09
+// Propósito  : Ejecutar Crystal mediante OLEAUTO
+// Creado Por : Juan Navas
+// Llamado por: REPOUT
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cRpt_Rpt,cRpt_Title,cRpt_File,cRpt_Ext)
+   LOCAL cRpt_Out    :=1
+   LOCAL cRpt_Path   :="CRYSTAL\"
+   LOCAL cFileMem    :="CRYSTAL\CRYSTAL.MEM"
+   LOCAL aForExt     :={"PDF","XML","RTF","DOCX","TXT","XLS","HTML"}
+   LOCAL aForId      :={31   ,37   ,35   ,14,    8    ,36   ,32}
+
+   // Salida PDF
+   LOCAL cRpt_Type   :=1
+   LOCAL cRpt_Format :=31
+   LOCAL cRpt_App    :="CrystalRuntime.Application"
+
+
+   DEFAULT cRpt_Rpt  :="crystal\dfactura.rpt",;
+           cRpt_Title:="AdaptaPro",;
+           cRpt_File :="temp\"+cFileNoPath(cFileNoExt(cRpt_Rpt))+".pdf",;
+           cRpt_Ext  :=cFileExt(cRpt_File)
+
+
+   IF !UPPER(oDp:cBin)$UPPER(cRpt_Rpt)
+      cRpt_Rpt:=oDp:cBin+cRpt_Rpt
+   ENDIF
+
+? cRpt_Rpt,cRpt_Title,cRpt_File,cRpt_Ext,"cRpt_Rpt,cRpt_Title,cRpt_File,cRpt_Ext"
+   SAVE TO (cFileMem) ALL LIKE cRpt*
+
+// WINEXEC("BIN\DPCRPE.EXE",0)
+
+RETURN
+
+/*
+ cRpt_Type=1 // crEDTDiskFile 1
+ cRpt_Type=2 // crEDTEMailMAPI 2
+ cRpt_Type=3 // crEDTEMailVIM 3
+ cRpt_Type=4 // crEDTMicrosoftExchange 4
+ cRpt_Type=5 // crEDTApplication 5
+ cRpt_Type=6 // crEDTLotusDomino 6
+
+ cRpt_Format:=7   // crEFTCharSeparatedValues 7
+ cRpt_Format:=5   // crEFTCommaSeparatedValues 5
+ cRpt_Format:=1   // crEFTCrystalReport 1
+ cRpt_Format:=33  // crEFTCrystalReport70 33
+ cRpt_Format:=2   // crEFTDataInterchange 2
+ cRpt_Format:=35  // crEFTExactRichText 35
+ cRpt_Format:=21  // crEFTExcel50 21
+ cRpt_Format:=22  // crEFTExcel50Tabular 22
+ cRpt_Format:=27  // crEFTExcel70 27
+ cRpt_Format:=28  // crEFTExcel70Tabular 28
+ cRpt_Format:=29  // crEFTExcel80 29
+ cRpt_Format:=2   // crEFTDataInterchange 2
+ cRpt_Format:=30  // crEFTExcel80Tabular 30
+ cRpt_Format:=36  // crEFTExcel97 36
+ cRpt_Format:=25  // crEFTExplorer32Extend 25
+ cRpt_Format:=24  // crEFTHTML32Standard 24
+ cRpt_Format:=32  // crEFTHTML40 32
+ cRpt_Format:=12  // crEFTLotus123WK1 12
+ cRpt_Format:=13  // crEFTLotus123WK3 13
+ cRpt_Format:=11  // crEFTLotus123WKS 11
+ cRpt_Format:=0   // crEFTNoFormat 0
+ cRpt_Format:=23  // crEFTODBC 23
+ cRpt_Format:=10  // crEFTPaginatedText 10
+ cRpt_Format:=31  // crEFTPortableDocFormat 31
+ cRpt_Format:=3   // crEFTRecordStyle 3
+ cRpt_Format:=9   // crEFTTabSeparatedText 9
+ cRpt_Format:=6   // crEFTTabSeparatedValues 6
+ cRpt_Format:=8   // crEFTText 8
+ cRpt_Format:=14  // crEFTWordForWindows 14
+ cRpt_Format:=37  // crEFTXML 37
+*/
+
+/*
+      oApplication := CreateObject(cRpt_App)           // "CrystalRuntime.Application")
+      oReport      := oApplication:OpenReport( cRpt_Rpt)
+      oReport:ExportOptions:DestinationType(cRpt_Type) // 1 )                              //to disk
+      oReport:ExportOptions:FormatType( cRpt_Format)   // 31                                  //to pdf
+      oReport:ExportOptions:DiskFileName( cRpt_Out )   //  "c:\report.pdf" )
+      oReport:Export( .F. )
+*/

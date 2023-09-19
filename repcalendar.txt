@@ -1,0 +1,21 @@
+// Programa   : REPCALENDAR
+// Fecha/Hora : 05/08/2010 02:20:19
+// Propósito  : Presentar Calendario Rango en Generador de Informes
+// Creado Por : Juan Navas
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(dFecha,oBrw)
+
+   IF oBrw=NIL
+     dFecha:=CalendarioDlg(NIL,dFecha)
+   ELSE
+     dFecha:=BRWDATE(oBrw, dFecha )
+   ENDIF
+
+RETURN dFecha
+// EOF
+

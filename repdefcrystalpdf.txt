@@ -1,0 +1,286 @@
+// Programa   : REPDEFCRYSTAL
+// Fecha/Hora : 24/08/2016 13:22:37
+// Propósito  : Definición de Formulario para Definir Salida del Reporte
+// Creado Por : Juan Navas
+// Llamado por: Cada Reporte
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cCodigo,oGenRep)
+   LOCAL aItems   :={"Wrapper (Dlls)","CREXPORT.EXE","OLE-AUTO","Emulador PDF"}
+   LOCAL aTypes   :={"Preview","Print","PDF","HTML","XLX"}
+   LOCAL cFileName:=oDp:cBin+"CRYSTAL\"
+   LOCAL oMemo    :=SPACE(10)
+   LOCAL aPrinters:=aGetPrinters()
+   LOCAL oIni,nOption:=0
+   LOCAL cMemo:="Requerimientos:"+CRLF+;
+                "Componentes Wrapper (Dlls) que no forman parte de este licencia y ha sido distribuidos "+;
+                "el programa de instalación para facilitar la implementación en el uso de Crystal Report."
+
+   DEFAULT cCodigo:=SQLGET("DPREPORTES","REP_CODIGO")
+
+   AADD(aPrinters,"Default")
+
+   DPEDIT():New("Definición de Salida mediante Crystal","REPDEFCRYSTAL.EDT","RptDef",.T.)
+
+   RptDef:REP_PRTMOD :=aItems[1]
+   RptDef:REP_RPTTYPE:=aTypes[1]
+   RptDef:REP_PRINTER:=ATAIL(aPrinters)
+   RptDef:REP_MAIL   :=.F.
+   RptDef:oGenRep :=oGenRep
+   RptDef:cCodigo :=cCodigo
+   RptDef:nOption :=0
+   RptDef:lEmail  :=.F.
+   RptDef:cMemoDll:=cMemo
+   RptDef:cMemo   :=cMemo
+   RptDef:cFileRpt:="Ninguno"
+   RptDef:aFileRpt:={"Ninguno"}
+
+   @ 3,01 SAY "Modo: "      RIGHT
+   @ 4,01 SAY "Tipo: "      RIGHT
+   @ 5,01 SAY "Impresora: " RIGHT
+   @ 7,01 SAY "Crystal: " RIGHT
+
+   @ 3,06 COMBOBOX RptDef:oREP_PRNMOD VAR RptDef:REP_PRTMOD ITEMS aItems;
+                   ON CHANGE RptDef:CRPSETTYPES()
+
+   @ 3,06 COMBOBOX RptDef:oREP_RPTTYPE;
+          VAR RptDef:REP_RPTTYPE;
+          ITEMS aTypes
+
+   @ 5,06 COMBOBOX RptDef:oREP_PRINTER;
+          VAR RptDef:REP_PRINTER;
+          ITEMS aPrinters
+
+   @ 4,06 COMBOBOX RptDef:oFileRpt;
+          VAR RptDef:cFileRpt;
+          ITEMS RptDef:aFileRpt WHEN LEN(RptDef:oFileRpt:aItems)>1
+
+   @ 6,1 CHECKBOX RptDef:REP_MAIL PROMPT "Enviar por Email"
+
+   @ 8,10 GET RptDef:oMemo VAR RptDef:cMemo MULTI READONLY
+
+   RptDef:Activate({||RptDef:ViewDatBar()})
+
+RETURN .T.
+
+/*
+// Barra de Botones
+*/
+FUNCTION ViewDatBar()
+   LOCAL oCursor,oBar,oBtn,oFont,oCol
+   LOCAL oDlg:=RptDef:oDlg
+   LOCAL nLin:=0
+   LOCAL cFileRep,oIni,aFileRpt:={},cFileRpt,I
+
+   DEFINE CURSOR oCursor HAND
+   DEFINE BUTTONBAR oBar SIZE 52-15,60-15 OF oDlg 3D CURSOR oCursor
+
+   DEFINE FONT oFont  NAME "Tahoma"   SIZE 0, -12 BOLD
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\XSAVE.BMP";
+          ACTION RptDef:REPDEFSAVE()
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\CRYSTAL.BMP";
+          ACTION RptDef:REPCRYSTAL()
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\UPLOAD.BMP";
+          ACTION EJECUTAR("REPCRYSTAL_UP",NIL,RptDef:cFileRpt)
+
+   oBtn:cToolTip:="Subir Formatos Crystal en AdaptaPro Server"
+ 
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\RUN.BMP";
+          ACTION RptDef:REPRUN()
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\XSALIR.BMP";
+          ACTION RptDef:Close()
+
+   oBar:SetColor(CLR_BLACK,oDp:nGris)
+
+   AEVAL(oBar:aControls,{|o,n|o:SetColor(CLR_BLACK,oDp:nGris)})
+
+   @ 01,100+(32*3)+4 SAY " "+RptDef:cCodigo OF oBar PIXEL BORDER SIZE 200,20 COLOR oDp:nClrYellowText,oDp:nClrYellow FONT oFont
+   @ 22,100+(32*3)+4 SAY " "+SQLGET("DPREPORTES","REP_DESCRI","REP_CODIGO"+GetWhere("=",RptDef:cCodigo)) OF oBar PIXEL;
+                     BORDER SIZE 400,20 COLOR oDp:nClrYellowText,oDp:nClrYellow FONT oFont
+ 
+   RptDef:oBar:=oBar
+
+   IF RptDef:oGenRep=NIL 
+
+     HRBLOAD("DPGENREP.HRB")
+
+     RptDef:oGenRep:=TGENREP():New()
+     RptDef:oGenRep:IniReport(RptDef:nOption , RptDef:cCodigo , RptDef:nOption=0 )
+
+     RptDef:REP_PRTMOD :=RptDef:oGenRep:REP_PRTMOD 
+     RptDef:REP_RPTTYPE:=RptDef:oGenRep:REP_RPTTYPE
+     RptDef:REP_PRINTER:=RptDef:oGenRep:REP_PRINTER
+     RptDef:REP_MAIL   :=RptDef:oGenRep:REP_MAIL   
+ 
+     COMBOINI(RptDef:oREP_PRNMOD)
+     COMBOINI(RptDef:oREP_RPTTYPE)
+     COMBOINI(RptDef:oREP_PRINTER)
+
+   ENDIF
+
+   cFileRep:="REPORT\"+ALLTRIM(RptDef:cCodigo)+".REP"
+
+   IF FILE(cFileRep)
+
+     oIni:=Tini():New( cFileRep )
+
+     cFileRpt:=oIni:Get("HEAD","CRYSTAL" ,"")
+     aFileRpt:=_VECTOR(cFileRpt,";")
+
+     FOR I=1 TO LEN(aFileRpt)
+       aFileRpt[I] :=STRTRAN(aFileRpt[I],CHR(29),"'")
+       aFileRpt[I] :=MACROEJE(aFileRpt[I])
+       aFileRpt[I] :=oDp:cBin+aFileRpt[I,1]
+
+//       cFileRpt    :=cDrive+cFileNoPath(aFileRpt[i,1])
+     NEXT I
+     
+   ENDIF
+
+   IF Empty(aFileRpt)
+      aFileRpt:={}
+      AADD(aFileRpt,"Ninguno")
+   ENDIF
+
+   RptDef:oFileRpt:SetItems(aFileRpt)
+   RptDef:aFileRpt:=ACLONE(aFileRpt)
+
+   COMBOINI(RptDef:oFileRpt)
+
+//  ViewArray(aFileRpt)
+
+   RptDef:CRPSETTYPES()
+
+RETURN .T.
+
+FUNCTION CRPSETTYPES()
+  LOCAL aTypes:={"Preview","Print"}
+
+  IF "Wrap"$RptDef:REP_PRTMOD
+    RptDef:oMemo:SetText(RptDef:cMemoDll)
+  ENDIF
+
+  IF "CREXP"$RptDef:REP_PRTMOD
+     AADD(aTypes,"PDF")
+     RptDef:ISCREXPORT()
+  ENDIF
+
+  IF "OLE"$RptDef:REP_PRTMOD
+
+     AADD(aTypes,"PDF" )
+     AADD(aTypes,"HTML")
+     AADD(aTypes,"XLS" )
+     AADD(aTypes,"RTF" )
+     AADD(aTypes,"DOCX" )
+     AADD(aTypes,"TXT" )
+     AADD(aTypes,"XML" )
+     AADD(aTypes,"HTML" )
+
+     RptDef:ISOLEAUTO() 
+
+  ENDIF
+
+  IF "Emu"$RptDef:REP_PRTMOD
+    RptDef:ISEMULADOR()
+  ENDIF
+
+
+  RptDef:oREP_RPTTYPE:SetItems(aTypes)
+  COMBOINI(RptDef:oREP_RPTTYPE)
+
+RETURN NIL
+
+FUNCTION ISCREXPORT()
+    LOCAL cMemo:="Requiere:"+CRLF+;
+                 "1. Wrapper especícos de Crystal Report no suministrados por AdaptaPro."+CRLF+;
+                 "2. Implementación de acceso a los datos de la carpeta crystal mediate ODBC."+CRLF+;
+                 "3. La participación de un asesor con experiencia con crystal report con CREXPORT."+CRLF+CRLF+;
+                 "Para mayor información puede consulta el siguiente enlace:"+CRLF+"http://rainforestnet.com/crystal-reports-exporter/ "
+
+    RptDef:oMemo:SetText(cMemo)
+
+RETURN NIL
+
+FUNCTION ISOLEAUTO()
+    LOCAL cMemo:="Requiere:"+CRLF+;
+                 "1. Componentes Dlls Crystal Report no suministrados por AdaptaPro."+CRLF+;
+                 "2. La participación de un asesor con experiencia con Crystal Report "
+
+    RptDef:oMemo:SetText(cMemo)
+
+RETURN NIL
+
+
+FUNCTION ISEMULADOR()
+    LOCAL cMemo:="Requiere:"+CRLF+;
+                 "1. Instalación lógica de una Impresora que emula impresión fisica generando Archivo PDF."+CRLF+;
+                 "2. La participación de un asesor con experiencia en la implementación de Impresora emuladas. "
+
+    RptDef:oMemo:SetText(cMemo)
+
+RETURN NIL
+
+/*
+// Guardar
+*/
+FUNCTION REPDEFSAVE()
+
+  RptDef:oGenRep:REP_PRTMOD :=RptDef:REP_PRTMOD
+  RptDef:oGenRep:REP_RPTTYPE:=RptDef:REP_RPTTYPE
+  RptDef:oGenRep:REP_PRINTER:=RptDef:REP_PRINTER
+  RptDef:oGenRep:REP_MAIL   :=RptDef:REP_MAIL
+
+  EJECUTAR("REPWRITE",RptDef:oGenRep)
+
+  SQLUPDATE("DPREPORTES","REP_PARAM",RptDef:oGenRep:cParameter,"REP_CODIGO"+GetWhere("=",RptDef:cCodigo))
+
+  RptDef:Close()
+
+RETURN NIL
+/*
+// Mostrar Crystal
+*/
+FUNCTION REPCRYSTAL()
+
+ SHELLEXECUTE(oDp:oFrameDp:hWND,"open",RptDef:cFileRpt)
+
+RETURN .T.
+
+/*
+// Mostrar Crystal
+*/
+FUNCTION REPRUN()
+
+ EJECUTAR("DPREPORTES",0,RptDef:cCodigo)
+
+RETURN .T.
+
+// EOF

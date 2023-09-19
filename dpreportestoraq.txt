@@ -1,0 +1,75 @@
+// Programa   : DPREPORTESTORAQ  
+// Fecha/Hora : 04/03/2015 03:25:15
+// Propósito  : Generar Paquete por Tabla
+// Creado Por : Juan Navas
+// Llamado por: EXPORTTABLES
+// Aplicación : Programación
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE EXPORTRUN(cTable,cDir,cDirUp)
+   LOCAL cFileRep,oData,oCursor,cError:="",cSql,cFileGru,cFileFpt
+   LOCAL aFiles:={},cFileZip,cSql
+   // LOCAL cDirUp:="UPLOAD\DPREPORTES\"
+   LOCAL oMeterR,oSayRecord
+   
+   DEFAULT cDir:="TEMP\",;
+           cTable:="DPREPORTES",;
+           cDirUp:="UPLOAD\DPREPORTES\"
+
+
+   lMkDir(cDirUp)
+
+   cFileRep  :=ALLTRIM(cDir)+"\DPREPORTES.DBF"
+   cFileFpt  :=ALLTRIM(cDir)+"\DPREPORTES.FPT"
+   cFileGru  :=ALLTRIM(cDir)+"\DPGRUREP.DBF"
+
+   cFileZip  :=cDirUp+cTable+".RAQ"
+
+   AADD(aFiles,cFileRep)
+   AADD(aFiles,cFileFpt)
+   AADD(aFiles,cFileGru)
+
+   AEVAL(aFiles,{|a,n| ferase(a)})
+
+   // Exporta los Datos
+   cSql:="SELECT * FROM DPREPORTES WHERE REP_CODIGO"+GetWhere("=",cTable)
+   oCursor:=OpenTable(cSql,.T.)
+
+   /*
+   // En Destino no indica Alterado
+   */
+   oCursor:GoTop()
+   WHILE !oCursor:Eof()
+     oCursor:Replace("REP_ALTERA",.F.)
+     oCursor:DbSkip()
+   ENDDO
+
+   oCursor:GoTop()
+   IF !oCursor:CTODBF(cFileRep,NIL,oMeterR,oSayRecord,@cError)
+      MensajeErr(cError,"No pudo Exportar Tablas de Datos")
+   ENDIF
+
+   oCursor:End()
+
+   /*
+   // Copia los Campos
+   */
+   cSql:="SELECT * FROM DPGRUREP WHERE GRR_CODIGO"+GetWhere("=",oCursor:REP_GRUPO)
+   oCursor:=OpenTable(cSql,.T.)
+   oCursor:GoTop()
+
+   IF !oCursor:CTODBF(cFileGru,NIL,oMeterR,oSayRecord,@cError)
+      MensajeErr(cError,"No pudo Exportar Campos de las Tablas de Datos")
+   ENDIF
+
+   lmkdir(cDir)
+
+   FERASE(cFileZip)
+
+   // Comprime el Archivo
+   HB_ZipFile( cFileZip, aFiles, 9,,.T., NIL, .F., .F. )
+
+RETURN FILE(cFileZip)
+// EOF

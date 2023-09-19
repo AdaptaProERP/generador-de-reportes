@@ -1,0 +1,95 @@
+// Programa   : REPCOMPALL
+// Fecha/Hora : 10/06/2003 20:43:44
+// Prop¢sito  : Recompila Todos los Reportes del Generador
+// Creado Por : Juan Navas
+// Llamado por: Menu
+// Aplicaci¢n : Generador de Reportes
+// Tabla      : Todas
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cWhere)
+  LOCAL cSql,oTable,aAplica:={},nCuantos:=0,oTable,aCodigos:={}
+
+  DEFAULT cWhere:=""
+
+  IF !Empty(cWhere) .AND. !" WHERE "$cWhere
+     cWhere:=" WHERE "+cWhere
+  ENDIF
+
+  oDp:lExcluye:=.F.
+
+  aCodigos:=ASQL(" SELECT REP_CODIGO FROM DPREPORTES "+cWhere)
+  nCuantos:=LEN(aCodigos)
+
+  oEdit:=DPEDIT():New("Recompilar Reportes DpXbase","forms\RepCompila.edt","oEdit",.T.)
+  oEdit:oMeter  :=NIL
+  oEdit:nCuantos:=nCuantos
+  oEdit:nContar :=0
+  oEdit:lStop   :=.f.
+  oEdit:cWhere  :=cWhere
+  oEdit:aCodigos:=aCodigos
+
+  @ 0,12 SAY oEdit:oName Prompt "Reportes "+STRZERO(oEdit:nCuantos,4)+SPACE(40)
+  @ 02,01 METER oEdit:oMeter VAR oEdit:nContar 
+
+  @ 6,07 BUTTON oEdit:oIniciar PROMPT "Iniciar " ACTION oEdit:RunCompila(oEdit)
+  @ 6,10 BUTTON oEdit:oCerrar  PROMPT "Cerrar  " ACTION (oEdit:lStop:=.t., oEdit:Close()) CANCEL
+
+  oEdit:Activate(NIL)
+
+  IF !Empty(oEdit:cWhere)
+     oEdit:RUNCOMPILA()
+  ENDIF
+
+RETURN NIL
+
+/*
+// Inicia la Compilaci¢n
+*/
+FUNCTION RUNCOMPILA()
+   LOCAL oTable,nContar:=1,aFiles,cMemo:="",cFileDbx,oScript,cFileDxb
+   LOCAL aCodigos:=oEdit:aCodigos
+
+   oEdit:lStop :=.f.
+   oEdit:oIniciar:Disable()
+  
+   oEdit:oMeter:SetTotal(Len(aCodigos))
+
+   WHILE nContar<=LEN(aCodigos) .AND. !oEdit:lStop
+
+       oEdit:oMeter:Set(nContar)
+       oTable:=OpenTable("SELECT * FROM DPREPORTES WHERE REP_CODIGO"+GetWhere("=",aCodigos[nContar,1]),.T.)
+       oEdit:oName:SETTEXT(oTable:REP_CODIGO+" "+oTable:REP_DESCRI)
+
+       cMemo   :=STRSQLOFF(oTable:REP_FUENTE)
+       cFileDxb:="REPORT\"+ALLTRIM(oTable:REP_CODIGO)+".RXB"
+
+       MemoWrit("REPORT\"+ALLTRIM(oTable:REP_CODIGO)+".REP",STRSQLOFF(oTable:REP_PARAM))
+
+       oScript:=TScript():New(cMemo)
+       oScript:cProgram:=uppe(oTable:REP_CODIGO)
+       oScript:Reset()
+       oScript:lPreProcess := .T.
+       oScript:cClpFlags   := "/i"+Alltrim(oDp:cPathInc) 
+       oScript:Compile(cMemo)
+
+       IF EMPTY(oScript:cError)
+          oScript:SavePCode(cFileDxB)
+       ELSE
+          MensajeErr(oScript:cError)
+       ENDIF
+
+       oTable:End()
+
+       nContar++
+   ENDDO
+
+   oEdit:oName:SETTEXT("Proceso Concluido")
+   oEdit:oIniciar:Enable()
+
+   IF !Empty(oEdit:cWhere)
+      oEdit:Close()
+   ENDIF
+ 	
+RETURN .T.

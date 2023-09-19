@@ -1,0 +1,63 @@
+// Programa   : DPREPFIND
+// Fecha/Hora : 01/06/2007 14:34:16
+// Propósito  : Buscar en Generador de Reportes
+// Creado Por : TJ
+// Llamado por: DPREPORTES/DPXBASE
+// Aplicación : Programación
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN()
+
+   LOCAL oDlg,oFontB
+
+   DEFAULT oDp:cText1 :=SPACE(40),;
+           oDp:cText2 :=SPACE(40)
+
+   DEFINE FONT oFontB NAME "Tahoma" SIZE 0, -11 BOLD
+
+   DPEDIT():New("Buscar en Reportes del Sistema","forms\DPREPFIND.EDT","oRepG",.T.)
+
+   oRepG:lMsgBar:=.F.
+   oRepG:nRadio :=1
+
+   @ 0.5,.5 SAY "Texto 1:" RIGHT SIZE 22,08 COLOR  NIL,oDp:nGris FONT oFontB
+   @ 1.2,.5 SAY "Texto 2:" RIGHT SIZE 22,08 COLOR  NIL,oDp:nGris FONT oFontB
+
+   @ 0.6,03.8 GET oDp:cText1 SIZE 125,10 FONT oFontB
+   @ 1.4,03.8 GET oDp:cText2 SIZE 125,10 FONT oFontB
+
+   @ 02,10  RADIO oRepG:oRadio VAR oRepG:nRadio;
+            ITEMS "&AND", "&OR" SIZE 60, 13 
+
+   @ 4,01 BUTTON " Buscar " ACTION oRepG:REPBUSCAR();
+          WHEN !Empty(oDp:cText1+oDp:cText2)
+
+   @ 4,01 BUTTON " Cerrar " ACTION oRepG:Close()
+
+   oRepG:Activate()
+
+RETURN .T.
+
+FUNCTION REPBUSCAR()
+   LOCAL cWhere:="REP_CODIGO"+GetWhere("=",oDp:cText1)+" OR REP_FUENTE "+GetWhere(" LIKE ","%"+ALLTRIM(oDp:cText1)+"%")
+
+   CURSORWAIT()
+
+   IF !Empty(oDp:cText2)
+
+      cWhere:=cWhere +IIF(oRepG:nRadio=1," AND "," OR ")+;
+            "REP_FUENTE "+GetWhere(" LIKE ","%"+ALLTRIM(oDp:cText2)+"%")
+   ENDIF
+
+   IF EMPTY(COUNT("DPREPORTES",cWhere))
+      MensajeErr("No hay Reportes Encontrados con el Criterio Solicitado")
+      RETURN .F.
+   ENDIF
+   
+   CURSORWAIT()
+   DPLBX("DPREPORTES",NIL,cWhere)
+
+RETURN .T.
+// EOF

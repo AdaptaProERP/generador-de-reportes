@@ -1,0 +1,141 @@
+// Programa   : REPEDTRGO
+// Fecha/Hora : 02/04/2004 16:35:47
+// Prop½sito  : Sugerior Opciones segœn el Tipo de Campo para RANGO
+// Creado Por : Juan Navas
+// Llamado por: RGOEDIT/TRANGO/TGENREP
+// Aplicaci½n : Generador de Informes
+// Tabla      : DPREPORTES
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGet,oRgo,lGet,lComboBox)
+  LOCAL oDlg,oFontB
+  LOCAL aLista:={},cLista,oFont,lAceptar:=.F.
+  LOCAL cList :="" // Lista de Campos que pueden Ser Agregados en la Lista
+  LOCAL oTable,oLink
+  LOCAL aField:={},cListFind:=""
+
+  IF oRgo=NIL
+     RETURN .T.
+  ENDIF
+
+  // Buscar Tablas Asociadas, Sugiere campos que Identifiquen la Tabla
+
+  DEFAULT lGet:=.F.,lComboBox:=.F. 
+
+  IF lComboBox .AND. !lGet
+      AADD(aLista,[COMBOBOX])
+  ENDIF
+
+  oTable:=OPENTABLE("SELECT * FROM DPLINK WHERE LNK_TABLED"+GetWhere("=",oRgo:cTable)+;
+                    " AND LNK_UPDATE=0",.T.)
+
+//  ? oRgo:cTable,oTable:RecCount()
+  oTable:Gotop()
+  WHILE !oTable:Eof()
+    IF !ALLTRIM(oTable:LNK_FIELDD)$ALLTRIM(oRgo:cField)+cList
+       cList:=cList+IIF(EMPTY(cList),"",",")+ALLTRIM(oTable:LNK_FIELDD)
+    ENDIF
+    IF !ALLTRIM(oTable:LNK_REFERE)$ALLTRIM(oRgo:cField)+cList
+       cList:=cList+IIF(EMPTY(cList),"",",")+ALLTRIM(oTable:LNK_REFERE)
+    ENDIF
+    oTable:DbSkip()
+  ENDDO
+ 
+  IF !EMPTY(cList)
+     cList:=["]+cList+["]
+     cList:=","+STRTRAN(cList,",",[","])
+  ENDIF
+  oTable:End()
+
+  oLink:=OpenTable("SELECT * FROM DPLINK WHERE LNK_TABLES='"+UPPE(oRgo:cTable)+"' AND LNK_FIELDS='"+UPPE(oRgo:cField)+"'",.T.)
+
+  IF oLink:RecCount()>0
+
+     AADD(aLista,[BDLIST("]+ALLTRIM(olink:LNK_TABLED)+[",{"]+ALLTRIM(olink:LNK_FIELDD)+[","]+;
+                  ALLTRIM(olink:LNK_REFERE)+["})])
+
+    IF lGet
+      RETURN aLista[LEN(aLista)]
+    ENDIF
+
+  ENDIF
+
+  If lGet // no Encontr½ sugerencia
+    Return ""
+  Endif
+
+  oLink:End()
+
+
+  IF oRgo:cType="D"
+    AADD(aLista,[REPCALENDAR()])
+    AADD(aLista,[REPFECHA("]+ALLTRIM(oRgo:cTable)+[","]+ALLTRIM(oRgo:cField)+[")])
+  ENDIF
+
+  cList:=STRTRAN(cList,[,""],[])
+
+  AADD(aLista,[BDLIST("]+ALLTRIM(oRgo:cTable)+[",{"]+ALLTRIM(oRgo:cField)+["]+cList+[})])
+  AADD(aLista,[BDLIST("]+ALLTRIM(oRgo:cTable)+[",{"]+ALLTRIM(oRgo:cField)+["},.T.)])
+
+  IF !Empty(cList)
+    aField:=_VECTOR(cList)
+    ADEPURA(aField,{|a,n| Empty(a)})
+    cListFind:=IIF(!Empty(aField),aField[1],"")
+  ENDIF
+
+  IF !Empty(cListFind)
+     //  lGroup,cWhere,cFieldFind
+     AADD(aLista,[BDLIST("]+ALLTRIM(oRgo:cTable)+[",{"]+ALLTRIM(oRgo:cField)+["]+cList+[},NIL,NIL,]+cListFind+[)])
+     AADD(aLista,[BDLIST("]+ALLTRIM(oRgo:cTable)+[",{"]+ALLTRIM(oRgo:cField)+["},.T.,NIL,]+cListFind+[)])
+  ENDIF
+
+/*
+  // Incluye Camp de busqueda
+  AADD(aLista,[BDLIST("]+ALLTRIM(oRgo:cTable)+[",{"]+ALLTRIM(oRgo:cField)+["]+cList+[})])
+  AADD(aLista,[BDLIST("]+ALLTRIM(oRgo:cTable)+[",{"]+ALLTRIM(oRgo:cField)+["},.T.)])
+*/
+
+// AEVAL(aLista,{|a,n| AADD(aLista[n],"") })
+// EJECUTAR("MSGBROWSE",aLista,"CAMPO <"+ALLTRIM(oRgo:cField)+">"),NIL,nAlto,nDataLines,aCols,lMsg)
+  cLista:=EJECUTAR("MSGBROWSE",aLista,"CAMPO <"+ALLTRIM(oRgo:cField)+">",{650,50},NIL,NIL,NIL,.T.)
+
+
+  IF !EMPTY(cLista)
+     cLista:=Padr(cLista,LEN(oGet:VarGet()))
+     oGet:VarPut(cLista,.T.)
+  ENDIF
+
+RETURN .T.
+
+
+//
+// ? cLista
+// RETURN NIL
+
+  AADD(aLista,"Ninguno")
+
+  cLista:=aLista[1]
+
+  DEFINE FONT oFont  NAME "Arial" SIZE 0, -14
+  DEFINE FONT oFontB NAME "Arial" SIZE 0, -12 BOLD
+
+  DEFINE DIALOG oDlg TITLE "CAMPO <"+ALLTRIM(oRgo:cField)+">" FROM 0,0 TO 10,80
+
+  @ 0.5,1 SAY "Lista de Sugerencias:" FONT oFontB
+  @ 1.5,1 COMBOBOX cLista ITEMS aLista OF oDlg SIZE 300,NIL FONT oFont
+
+  @ 2.5,30 BUTTON " Aceptar " ACTION (lAceptar:=.T.,oDlg:End()) SIZE 50,15
+  @ 2.5,40 BUTTON " Cerrar  " ACTION (lAceptar:=.F.,oDlg:End()) SIZE 50,15
+
+  ACTIVATE DIALOG oDlg CENTERED
+
+  IF lAceptar .AND. UPPER(cLista)!="NINGUNO"
+     cLista:=Padr(cLista,LEN(oGet:VarGet()))
+     oGet:VarPut(cLista,.T.)
+  ENDIF
+
+  STORE NIL TO oDlg,oFont,oFontB
+
+RETURN .T.
+// EOF

@@ -1,0 +1,27 @@
+// Programa   : REPDELETE
+// Fecha/Hora : 16/03/2004 15:37:57
+// Prop¢sito  : Borrar Archivos Derivados del Generador de Informes
+// Creado Por : Juan Navas
+// Llamado por: TGENREP
+// Aplicaci¢n : Generador de Informes
+// Tabla      : DPREPORTES
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep)
+   LOCAL cFileBack:=STRTRAN(oGenRep:cFileIni,".REP",".BAK")
+
+   // Genera Copia
+   Ferase(cFileBack)
+   FRename(oGenRep:cFileIni,cFileBack)
+
+   // Borrar Archivo 
+   Ferase(oGenRep:cFileIni)
+   Ferase(StrTran(oGenRep:cFileIni,".REP",".SCR"))
+   Ferase(StrTran(oGenRep:cFileIni,".REP",".DXB"))
+   Ferase(StrTran(oGenRep:cFileIni,".REP",".RXB"))
+
+
+RETURN NIL
+
+// EOF

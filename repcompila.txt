@@ -1,0 +1,67 @@
+// Programa   : REPCOMPILA
+// Fecha/Hora : 13/03/2004 18:57:29
+// Prop¢sito  : Compilar Programa Fuente
+// Creado Por : Juan Navas
+// Llamado por: TGENREP
+// Aplicaci¢n : Generador de Reportes
+// Tabla      : DPREPORT
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep)
+   LOCAL cMemo:="",oScript
+   LOCAL cFileDxB,lCompExe:=.F.,cFile,cFileC
+   LOCAL cBin  :=cFileNoPath(GetModuleFileName( GetInstance() ))
+
+   IF oGenRep=NIL
+      RETURN NIL
+   ENDIF
+
+   cMemo :=oGenRep:cMemo
+
+   cFile :="REPORT\REP_"+Lower(ALLTRIM(oGenRep:REP_CODIGO))+".sre"
+
+   IF EMPTY(cMemo)
+
+      IF ValType(oGenRep:oMemo)="O"
+        cMemo   :=oGenRep:oMemo:GetText()
+      ELSE
+        cMemo   :=SQLGET("DPREPORTES","REP_FUENTE","REP_CODIGO"+GetWhere("=",oGenRep:REP_CODIGO))
+      ENDIF
+
+   ENDIF
+
+   cFileDxb:="REPORT\REP_"+Lower(ALLTRIM(oGenRep:REP_CODIGO))+".RXB"
+
+   FERASE(cFileDxB)
+
+   IF Empty(cMemo)
+      MensajeErr("Reporte "+oGenRep:REP_CODIGO+" no Posee Código Fuente")
+      RETURN .F.
+   ENDIF
+
+
+   oDp:cCompile:=""
+   oScript:=TScript():New(cMemo)
+   oScript:cError:=""
+   oScript:cProgram:="REP_"+uppe(oGenRep:REP_CODIGO)
+   oScript:Reset()
+   oScript:lPreProcess := .T.
+   oScript:cClpFlags   := "/i"+Alltrim(oDp:cPathInc)
+   oScript:Compile(cMemo)
+
+
+   IF EMPTY(oScript:cError)
+
+       oScript:SavePCode(cFileDxB,.F.)
+
+   ELSE
+
+       MensajeErr("Error de Compilación: "+oScript:cError+CRLF+;
+                  "Compilando: "          +oDp:cCompile+CRLF+;
+                  "No se pudo generar: "  +cFileDxB)
+   ENDIF
+
+RETURN FILE(cFileDxB)
+
+// EOF

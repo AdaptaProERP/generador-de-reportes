@@ -1,0 +1,666 @@
+// Programa   : DPREPORTRECOVER
+// Fecha/Hora : 13/06/2017 15:04:37
+// Propósito  : Recuperar Reportes
+// Creado Por : Automáticamente por BRWMAKER
+// Llamado por: <DPXBASE>
+// Aplicación : Gerencia 
+// Tabla      : <TABLA>
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cCodigo,cWhere,cCodSuc,nPeriodo,dDesde,dHasta,cTitle,cTableA)
+   LOCAL aData,aFechas,cFileMem:="USER\BRPLANTILLADOC.MEM",V_nPeriodo:=4,cCodPar
+   LOCAL V_dDesde:=CTOD(""),V_dHasta:=CTOD("")
+   LOCAL cServer:=oDp:cRunServer,aVars:={}
+   LOCAL lConectar:=.F.,cSql
+
+   oDp:cRunServer:=NIL
+
+   IF !Empty(cServer)
+
+     MsgRun("Conectando con Servidor "+cServer+" ["+ALLTRIM(SQLGET("DPSERVERBD","SBD_DOMINI","SBD_CODIGO"+GetWhere("=",cServer)))+"]",;
+            "Por Favor Espere",{||lConectar:=EJECUTAR("DPSERVERDBOPEN",cServer)})
+
+     IF !lConectar
+        RETURN .F.
+     ENDIF
+
+   ENDIF 
+
+
+   IF Type("oRepRec")="O" .AND. oRepRec:oWnd:hWnd>0
+      EJECUTAR("BRRUNNEW",oRepRec,GetScript())
+      RETURN oRepRec
+   ENDIF
+
+   cTitle:="Recuperar Programa Parámetros y Programas Fuente del Generador de Reportes " +IF(Empty(cTitle),"",cTitle)
+
+   oDp:oFrm:=NIL
+
+   DEFAULT cCodSuc :=oDp:cSucursal,;
+           nPeriodo:=4,;
+           dDesde  :=CTOD(""),;
+           dHasta  :=CTOD(""),;
+           cWhere  :="",;
+           cCodigo :="DOCCLIFAV",;
+           cTableA :="DPAUDELIMODCNF"	
+
+   cWhere:="AEM_CLAVE"+GetWhere("=",cCodigo)
+
+   aData:=LEERDATA(HACERWHERE(dDesde,dHasta,cWhere),NIL,cServer,cTableA)
+
+   cSql :=oDp:cWhere
+
+   IF Empty(aData)
+      MensajeErr("no hay "+cTitle,"Información no Encontrada")
+      RETURN .F.
+   ENDIF
+
+   ViewData(aData,cTitle,oDp:cWhere)
+
+   oDp:oFrm:=oRepRec
+            
+RETURN .T. 
+
+FUNCTION ViewData(aData,cTitle,cWhere_)
+   LOCAL oBrw,oCol,aTotal:=ATOTALES(aData)
+   LOCAL oFont,oFontB
+   LOCAL aPeriodos:=ACLONE(oDp:aPeriodos)
+   LOCAL aCoors:=GetCoors( GetDesktopWindow() )
+
+   DEFINE FONT oFont  NAME "Tahoma" SIZE 0, -12 
+   DEFINE FONT oFontB NAME "Tahoma" SIZE 0, -12 
+
+   DpMdi(cTitle,"oRepRec","") // BRPLANTILLADOC.EDT")
+
+   // oRepRec:Windows(0,0,600,1010,.T.) // Maximizado
+
+   oRepRec:Windows(0,0,aCoors[3]-160,aCoors[4]-10,.T.) // Maximizado
+
+   oRepRec:lMsgBar  :=.F.
+   oRepRec:cPeriodo :=aPeriodos[nPeriodo]
+   oRepRec:cCodSuc  :=cCodSuc
+   oRepRec:nPeriodo :=nPeriodo
+   oRepRec:cNombre  :=""
+   oRepRec:dDesde   :=dDesde
+   oRepRec:cServer  :=cServer
+   oRepRec:dHasta   :=dHasta
+   oRepRec:cWhere   :=cWhere
+   oRepRec:cWhere_  :=cWhere_
+   oRepRec:cWhereQry:=""
+   oRepRec:cSql     :=oDp:cSql
+   oRepRec:oWhere   :=TWHERE():New(oRepRec)
+   oRepRec:cCodPar  :=cCodPar // Código del Parámetro
+   oRepRec:lWhen    :=.T.
+   oRepRec:cTextTit :="" // Texto del Titulo Heredado
+   oRepRec:oDb      :=oDp:oDb
+   oRepRec:cBrwCod  :=""
+   oRepRec:lTmdi    :=.T.
+   oRepRec:cWhereCli:=""
+   oRepRec:cTitleCli:=NIL
+   oRepRec:cCodigo  :=cCodigo
+   oRepRec:cMemo    :=""
+   oRepRec:oMemo    :=NIL
+   oRepRec:cTableA  :=cTableA
+
+
+   oRepRec:oBrw:=TXBrowse():New( IF(oRepRec:lTmdi,oRepRec:oWnd,oRepRec:oDlg ))
+   oRepRec:oBrw:SetArray( aData, .F. )
+   oRepRec:oBrw:SetFont(oFont)
+
+   oRepRec:oBrw:lFooter     := .F.
+   oRepRec:oBrw:lHScroll    := .T.
+   oRepRec:oBrw:nHeaderLines:= 1
+   oRepRec:oBrw:nDataLines  := 1
+   oRepRec:oBrw:nFooterLines:= 1
+
+   oRepRec:aData            :=ACLONE(aData)
+  oRepRec:nClrText :=0
+  oRepRec:nClrPane1:=16774120
+  oRepRec:nClrPane2:=16771538
+
+   AEVAL(oRepRec:oBrw:aCols,{|oCol|oCol:oHeaderFont:=oFont})
+
+   oCol:=oRepRec:oBrw:aCols[1]
+   oCol:cHeader      :='Fecha'
+   oCol:bLClickHeader:= {|r,c,f,o| SortArray( o, oRepRec:oBrw:aArrayData ) } 
+   oCol:nWidth       := 70
+
+   oCol:=oRepRec:oBrw:aCols[2]
+   oCol:cHeader      :='Hora'
+   oCol:bLClickHeader:= {|r,c,f,o| SortArray( o, oRepRec:oBrw:aArrayData ) } 
+   oCol:nWidth       := 60
+
+   oCol:=oRepRec:oBrw:aCols[3]
+   oCol:cHeader      :='Contenido ('+LSTR(LEN(aData))+" Reg.)"
+   oCol:nWidth       := 1200
+   oCol:bStrData     :={|cMemo|cMemo:=oRepRec:oBrw:aArrayData[oRepRec:oBrw:nArrayAt,3],LEFT(cMemo,254)}
+
+   oRepRec:oBrw:bClrStd               := {|oBrw,nClrText,aData|oBrw:=oRepRec:oBrw,aData:=oBrw:aArrayData[oBrw:nArrayAt],;
+                                           oRepRec:nClrText,;
+                                          {nClrText,iif( oBrw:nArrayAt%2=0, oRepRec:nClrPane1, oRepRec:nClrPane2 ) } }
+
+   oRepRec:oBrw:bClrHeader            := {|| { oDp:nLbxClrHeaderText, oDp:nLbxClrHeaderPane}}
+   oRepRec:oBrw:bClrFooter            := {|| { oDp:nLbxClrHeaderText, oDp:nLbxClrHeaderPane}}
+
+
+   oRepRec:oBrw:bLDblClick:={|oBrw|oRepRec:RUNCLICK() }
+
+   oRepRec:oBrw:bChange:={||oRepRec:BRWCHANGE()}
+   oRepRec:oBrw:CreateFromCode()
+
+   oRepRec:bValid   :={|| EJECUTAR("BRWSAVEPAR",oRepRec)}
+   oRepRec:BRWRESTOREPAR()
+
+   // @ 10,0 GET oRepRec:oMemo VAR oRepRec:cMemo  MULTI HSCROLL FONT oFontB
+
+   @ 10,0 RICHEDIT oRepRec:oMemo VAR oRepRec:cMemo OF oRepRec:oWnd HSCROLL  FONT oFontB
+
+   @ 0,0 SPLITTER oRepRec:oHSplit ;
+         HORIZONTAL;
+         PREVIOUS CONTROLS oRepRec:oBrw ;
+         HINDS CONTROLS oRepRec:oMemo;
+         TOP MARGIN 40 ;
+         BOTTOM MARGIN 40 ;
+         SIZE 300, 4  PIXEL ;
+         OF oRepRec:oWnd ;
+         _3DLOOK
+
+  oRepRec:oWnd:oClient := oRepRec:oHSplit
+
+  oRepRec:Activate({||oRepRec:ViewDatBar()})
+
+RETURN .T.
+
+/*
+// Barra de Botones
+*/
+FUNCTION ViewDatBar()
+   LOCAL oCursor,oBar,oBtn,oFont,oCol
+   LOCAL oDlg:=IF(oRepRec:lTmdi,oRepRec:oWnd,oRepRec:oDlg)
+   LOCAL nLin:=0
+   LOCAL nWidth:=oRepRec:oBrw:nWidth()
+   LOCAL nAltoBrw:=150
+
+   /*   
+   //  Ubicamos el Area del Primer Objeto o Browse.
+   */
+
+   oRepRec:oBrw:Move(032,0,800,nAltoBrw,.T.)
+
+   oRepRec:oHSplit:Move(oRepRec:oBrw:nHeight()+oRepRec:oBrw:nTop(),0)
+   oRepRec:oMemo:Move(oRepRec:oBrw:nHeight()+oRepRec:oBrw:nTop()+5,0,800,400,.T.)
+
+   oRepRec:oHSplit:AdjLeft()
+   oRepRec:oHSplit:AdjRight()
+
+   oRepRec:oBrw:GoBottom(.T.)
+   oRepRec:oBrw:Refresh(.T.)
+
+   DEFINE CURSOR oCursor HAND
+   DEFINE BUTTONBAR oBar SIZE 52-15,60-15 OF oDlg 3D CURSOR oCursor
+   DEFINE FONT oFont  NAME "Tahoma"   SIZE 0, -12 BOLD
+
+ // Emanager no Incluye consulta de Vinculos
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\PASTE.BMP";
+          ACTION (MsgMemo("Contenido Copiado en ClipBoard"),;
+                  CLPCOPY(oRepRec:cMemo))
+
+   oBtn:cToolTip:="Copiar en ClipBoard"
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\XSAVE.BMP";
+          ACTION oRepRec:TXTGUARDAR()
+
+   oBtn:cToolTip:="Copiar en ClipBoard"
+
+
+   IF .T. .AND. Empty(oRepRec:cServer)
+
+     DEFINE BUTTON oBtn;
+            OF oBar;
+            NOBORDER;
+            FONT oFont;
+            FILENAME "BITMAPS\VIEW.BMP";
+            ACTION EJECUTAR("BRWRUNLINK",oRepRec:oBrw,oRepRec:cSql)
+
+     oBtn:cToolTip:="Consultar Vinculos"
+
+
+   ENDIF
+
+  
+/*
+   IF Empty(oRepRec:cServer) .AND. !Empty(SQLGET("DPBRWLNK","EBR_CODIGO","EBR_CODIGO"+GetWhere("=","PLANTILLADOC")))
+*/
+
+   IF ISSQLFIND("DPBRWLNKCONCAT","BRC_CODIGO"+GetWhere("=","PLANTILLADOC"))
+
+       DEFINE BUTTON oBtn;
+       OF oBar;
+       NOBORDER;
+       FONT oFont;
+       FILENAME "BITMAPS\XBROWSE.BMP";
+       ACTION EJECUTAR("BRWRUNBRWLINK",oRepRec:oBrw,"PLANTILLADOC",oRepRec:cSql,oRepRec:nPeriodo,oRepRec:dDesde,oRepRec:dHasta,oRepRec)
+
+       oBtn:cToolTip:="Ejecutar Browse Vinculado(s)"
+       oRepRec:oBtnRun:=oBtn
+
+       oRepRec:oBrw:bLDblClick:={||EVAL(oRepRec:oBtnRun:bAction) }
+
+
+   ENDIF
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\AUDITORIA.BMP";
+          ACTION oRepRec:VERAUDITORIA()
+
+   oBtn:cToolTip:="Explorar en Pistas de Auditoria"
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME DPBMP("Search3.bmp");
+          ACTION RTFFIND(oRepRec:oWnd,oRepRec:oMemo) 
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\ZOOM.BMP";
+          ACTION IF(oRepRec:oWnd:IsZoomed(),oRepRec:oWnd:Restore(),oRepRec:oWnd:Maximize())
+
+   oBtn:cToolTip:="Maximizar"
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\XFIND.BMP";
+          ACTION EJECUTAR("BRWSETFIND",oRepRec:oBrw)
+
+   oBtn:cToolTip:="Buscar"
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\FILTRAR.BMP";
+          ACTION EJECUTAR("BRWSETFILTER",oRepRec:oBrw)
+
+   oBtn:cToolTip:="Filtrar Registros"
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\OPTIONS.BMP",NIL,"BITMAPS\OPTIONSG.BMP";
+          ACTION EJECUTAR("BRWSETOPTIONS",oRepRec:oBrw);
+          WHEN LEN(oRepRec:oBrw:aArrayData)>1
+
+   oBtn:cToolTip:="Filtrar según Valores Comunes"
+
+
+/*
+IF nWidth>300
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\REFRESH.BMP";
+          ACTION oRepRec:BRWREFRESCAR()
+
+   oBtn:cToolTip:="Refrescar"
+
+ENDIF
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\CRYSTAL.BMP";
+          ACTION EJECUTAR("BRWTODBF",oRepRec)
+
+   oBtn:cToolTip:="Visualizar Mediante Crystal Report"
+
+*/
+
+IF nWidth>400
+
+ 
+     DEFINE BUTTON oBtn;
+            OF oBar;
+            NOBORDER;
+            FONT oFont;
+            FILENAME "BITMAPS\EXCEL.BMP";
+            ACTION (EJECUTAR("BRWTOEXCEL",oRepRec:oBrw,oRepRec:cTitle,oRepRec:cNombre))
+
+     oBtn:cToolTip:="Exportar hacia Excel"
+
+     oRepRec:oBtnXls:=oBtn
+
+ENDIF
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\html.BMP";
+          ACTION (EJECUTAR("BRWTOHTML",oRepRec:oBrw))
+
+   oBtn:cToolTip:="Generar Archivo html"
+
+   oRepRec:oBtnHtml:=oBtn
+
+  
+
+IF nWidth>300
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\PREVIEW.BMP";
+          ACTION (EJECUTAR("BRWPREVIEW",oRepRec:oBrw))
+
+   oBtn:cToolTip:="Previsualización"
+
+   oRepRec:oBtnPreview:=oBtn
+
+ENDIF
+
+   IF ISSQLGET("DPREPORTES","REP_CODIGO","BRPLANTILLADOC")
+
+     DEFINE BUTTON oBtn;
+            OF oBar;
+            NOBORDER;
+            FONT oFont;
+            FILENAME "BITMAPS\XPRINT.BMP";
+            ACTION oRepRec:IMPRIMIR()
+
+      oBtn:cToolTip:="Imprimir"
+
+     oRepRec:oBtnPrint:=oBtn
+
+   ENDIF
+
+IF nWidth>700
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\QUERY.BMP";
+          ACTION oRepRec:BRWQUERY()
+
+   oBtn:cToolTip:="Imprimir"
+
+ENDIF
+
+
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\xTOP.BMP";
+          ACTION (oRepRec:oBrw:GoTop(),oRepRec:oBrw:Setfocus())
+
+IF nWidth>800 .OR. nWidth=0
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\xSIG.BMP";
+          ACTION (oRepRec:oBrw:PageDown(),oRepRec:oBrw:Setfocus())
+
+  DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\xANT.BMP";
+          ACTION (oRepRec:oBrw:PageUp(),oRepRec:oBrw:Setfocus())
+
+ENDIF
+
+
+  DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\xFIN.BMP";
+          ACTION (oRepRec:oBrw:GoBottom(),oRepRec:oBrw:Setfocus())
+
+
+   DEFINE BUTTON oBtn;
+          OF oBar;
+          NOBORDER;
+          FONT oFont;
+          FILENAME "BITMAPS\XSALIR.BMP";
+          ACTION oRepRec:Close()
+
+  oRepRec:oBrw:SetColor(0,oRepRec:nClrPane1)
+
+  EVAL(oRepRec:oBrw:bChange)
+ 
+  oBar:SetColor(CLR_BLACK,oDp:nGris)
+
+  AEVAL(oBar:aControls,{|o,n|o:SetColor(CLR_BLACK,oDp:nGris)})
+
+  @ 1,400+32+62 SAY " Código "       RIGHT OF oBar BORDER SIZE 100,20 PIXEL COLOR oDp:nClrLabelText,oDp:nClrLabelPane FONT oFont
+  @21,400+32+62 SAY " Descripción "  RIGHT OF oBar BORDER SIZE 100,20 PIXEL COLOR oDp:nClrLabelText,oDp:nClrLabelPane FONT oFont
+
+
+  @ 21,500+32+64 SAY oRepRec:oNombre PROMPT " "+SQLGET("DPREPORTES","REP_DESCRI","REP_CODIGO"+GetWhere("=",oRepRec:cCodigo));
+              OF oBar PIXEL SIZE 467,20 BORDER COLOR oDp:nClrYellowText,oDp:nClrYellow FONT oFont
+
+  @ 01,532+64 SAY " "+oRepRec:cCodigo+" ";
+              OF oBar PIXEL SIZE 320,20 BORDER COLOR oDp:nClrYellowText,oDp:nClrYellow FONT oFont
+
+  oRepRec:oBar:=oBar
+ 
+RETURN .T.
+
+/*
+// Evento para presionar CLICK
+*/
+FUNCTION RUNCLICK()
+RETURN .T.
+
+
+/*
+// Imprimir
+*/
+FUNCTION IMPRIMIR()
+RETURN .T.
+
+FUNCTION LEEFECHAS()
+RETURN .T.
+
+
+FUNCTION HACERWHERE(dDesde,dHasta,cWhere_,lRun)
+   LOCAL cWhere:=""
+
+   DEFAULT lRun:=.F.
+
+   // Campo fecha no puede estar en la nueva clausula
+   IF ""$cWhere
+     RETURN ""
+   ENDIF
+
+   IF !Empty(dDesde)
+       
+   ELSE
+     IF !Empty(dHasta)
+       
+     ENDIF
+   ENDIF
+
+
+   IF !Empty(cWhere_)
+      cWhere:=cWhere + IIF( Empty(cWhere),""," AND ") +cWhere_
+   ENDIF
+
+   IF lRun
+
+     IF !Empty(oRepRec:cWhereQry)
+       cWhere:=cWhere + oRepRec:cWhereQry
+     ENDIF
+
+     oRepRec:LEERDATA(cWhere,oRepRec:oBrw,oRepRec:cServer)
+
+   ENDIF
+
+
+RETURN cWhere
+
+
+FUNCTION LEERDATA(cWhere,oBrw,cServer,cTableA)
+   LOCAL aData:={},aTotal:={},oCol,cSql,aLines:={}
+   LOCAL oDb
+
+   DEFAULT cWhere:=""
+
+   IF !Empty(cServer)
+
+     IF !EJECUTAR("DPSERVERDBOPEN",cServer)
+        RETURN .F.
+     ENDIF
+
+     oDb:=oDp:oDb
+
+   ENDIF
+
+   DEFAULT cTableA:="DPAUDELIMODCNF"
+
+   cSql:=" SELECT AEM_FECHA,AEM_HORA,AEM_MEMO FROM "+cTableA+" "+CRLF+;
+         " WHERE AEM_TABLA "+GetWhere("=","DPREPORTES")+" AND "+cWhere+CRLF+;
+         " ORDER BY CONCAT(AEM_FECHA,AEM_HORA) DESC "
+
+   cSql:=EJECUTAR("WHERE_VAR",cSql)
+
+   oDp:lExcluye:=.T.
+
+   aData:=ASQL(cSql,oDb)
+
+   oDp:cWhere:=cWhere
+
+
+   IF EMPTY(aData)
+      aData:=EJECUTAR("SQLARRAYEMPTY",cSql,oDb)
+   ENDIF
+/*
+   IF ValType(oBrw)="O"
+
+      oRepRec:cSql   :=cSql
+      oRepRec:cWhere_:=cWhere
+
+      aTotal:=ATOTALES(aData)
+
+      oBrw:aArrayData:=ACLONE(aData)
+      oBrw:nArrayAt  :=1
+      oBrw:nRowSel   :=1
+
+      oRepRec:oBrw:aCols[1]:cFooter:=" #"+LSTR(LEN(aData))
+   
+      oBrw:Refresh(.T.)
+      AEVAL(oRepRec:oBar:aControls,{|o,n| o:ForWhen(.T.)})
+
+      oRepRec:SAVEPERIODO()
+
+   ENDIF
+*/
+RETURN aData
+
+
+FUNCTION SAVEPERIODO()
+  LOCAL cFileMem:="USER\BRPLANTILLADOC.MEM",V_nPeriodo:=oRepRec:nPeriodo
+  LOCAL V_dDesde:=oRepRec:dDesde
+  LOCAL V_dHasta:=oRepRec:dHasta
+
+  SAVE TO (cFileMem) ALL LIKE "V_*"
+
+RETURN .T.
+
+/*
+// Permite Crear Filtros para las Búquedas
+*/
+FUNCTION BRWQUERY()
+     EJECUTAR("BRWQUERY",oRepRec)
+RETURN .T.
+
+/*
+// Ejecución Cambio de Linea 
+*/
+FUNCTION BRWCHANGE()
+
+  oRepRec:cMemo:=oRepRec:oBrw:aArrayData[oRepRec:oBrw:nArrayAt,3]
+
+  IF oRepRec:oMemo<>NIL
+    oRepRec:oMemo:VarPut(oRepRec:cMemo,.T.)
+  ENDIF
+
+ 
+RETURN NIL
+
+/*
+// Refrescar Browse
+*/
+FUNCTION BRWREFRESCAR()
+    LOCAL cWhere
+
+
+    IF Type("oRepRec")="O" .AND. oRepRec:oWnd:hWnd>0
+
+      cWhere:=" "+IIF(!Empty("oRepRec":cWhere_),"oRepRec":cWhere_,"oRepRec":cWhere)
+      cWhere:=STRTRAN(cWhere," WHERE ","")
+
+
+      oRepRec:LEERDATA(oRepRec:cWhere_,oRepRec:oBrw,oRepRec:cServer)
+      oRepRec:oWnd:Show()
+      oRepRec:oWnd:Maximize()
+
+    ENDIF
+
+RETURN NIL
+
+FUNCTION TXTGUARDAR()
+  LOCAL cFile:=oDp:cBin+"TEMP\FILE.TXT"
+
+  DPWRITE(cFile,oRepRec:cMemo)
+
+//  SHELLEXECUTE(oDp:oFrameDp:hWND,"open",cFile)
+  CursorWait()
+//  MemoWrit(oRun:cFileTxt,OEMTOANSI(MemoRead(oRun:cFileTxt)))
+  WinExec(  GetWinDir()+ "\NOTEPAD.EXE "+cFile)
+
+RETURN .T.
+
+FUNCTION BRWRESTOREPAR()
+RETURN EJECUTAR("BRWRESTOREPAR",oRepRec)
+
+
+FUNCTION VERAUDITORIA()
+RETURN EJECUTAR("DPREPORTRECOVER",oRepRec:cCodigo,NIL,NIL,NIL,NIL,NIL,NIL,"DPAUDELIMODCNF_HIS")
+
+// EOF

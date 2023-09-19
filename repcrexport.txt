@@ -1,0 +1,89 @@
+// Programa   : REPCREXPORT
+// Fecha/Hora : 11/06/2016 18:08:13
+// Propósito  : Ejecutar CREXPORT
+// Creado Por : Juan Navas, Contribución: Kelvis Escalante (Investigador CREXPORT)
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cFileRpt,cFileExt,cExt,lRun)
+   LOCAL cMemo:=MEMOREAD("DP\CREX.BAT")
+   LOCAL cBat :="CR"+LSTR(SECONDS())+".BAT"
+   LOCAL cFileLog,aFiles,cMemoLog:=""
+ 
+/*  
+   DEFAULT cFileRpt:="DFACTURA_ODBC.RPT",;
+           cFileExt:="DFACTURA_ODBC.PDF",;
+           cExt    :=cFileExt(cFileExt),;
+           lRun    :=.T.
+*/
+
+   DEFAULT cFileRpt:="DPALMACEN.RPT",;
+           cFileExt:="DFALMACEN.PDF",;
+           cExt    :=cFileExt(cFileExt),;
+           lRun    :=.T.
+
+
+   IF .F. .AND. !EJECUTAR("DSNCRYSTAL") 
+      MsgMemo("No Existe DSN del ODBC para Crystal")
+      RETURN .F.
+   ENDIF
+
+   cFileRpt:=oDp:cBin+"crystal\"+cFileRpt
+   cFileExt:=oDp:cBin+"temp\"+cFileExt
+
+   cMemo:=STRTRAN(cMemo,"<FILE.RPT>",cFileRpt)
+   cMemo:=STRTRAN(cMemo,"<FILE.OUT>",cFileExt)
+   cMemo:=STRTRAN(cMemo,"<EXT>"     ,cExt)
+
+   DPWRITE(cBat,cMemo)
+
+? cMemo
+
+   IF !FILE("BIN\CREXPORT.EXE")
+      MsgMemo("Programa BIN\CREXPORT.EXE, no existe")
+      RETURN .F.
+   ENDIF
+
+   aFiles  :=DIRECTORY("BIN\*.LOG")
+   AEVAL(aFiles,{|a,n| FERASE("bin\"+a[1])})
+
+   MsgRun("Creando "+cFileExt,"Por Favor Espere",{||WAITRUN(cBat,0)})
+
+   aFiles  :=DIRECTORY("BIN\*.LOG")
+   
+   IF !Empty(aFiles)
+      cFileLog:="Bin\"+aFiles[1,1]
+   ENDIF
+
+   IF !File(cFileExt)
+
+      cMemo:=cBat+CRLF+;
+             ALLTRIM(cMemo)+CRLF+;
+             REPLI("-",80 )+CRLF+;
+             "File: "+cFileExt+CRLF+;
+             REPLI("-",80 )+CRLF+;
+             MemoRead(cFileLog)
+
+      MsgMemo(cMemo,"Arhivo no Generado",500,400)
+      RETURN .F.
+
+   ENDIF
+
+   IF lRun
+
+      MsgRun("Ejecutando "+cFileExt,"Ejecutando"+cFileExt,;
+            {||SHELLEXECUTE(oDp:oFrameDp:hWND,"open",cFileExt)}) 
+
+
+   ENDIF
+
+   FERASE(cBat)
+   FERASE(cFileLog)
+
+ ? cBat,cMemo,cFileExt
+
+RETURN cFileExt
+// EOF

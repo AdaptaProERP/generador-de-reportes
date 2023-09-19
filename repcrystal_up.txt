@@ -1,0 +1,37 @@
+// Programa   : REPCRYSTAL_UP
+// Fecha/Hora : 29/10/2019 00:08:18
+// Propósito  :
+// Creado Por :
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oRep,cFile)
+  LOCAL aTablas:={},lOk:=.T.
+
+  DEFAULT cFile:=""
+
+  IF Empty(cFile)
+     RETURN .T.
+  ENDIF
+  
+  IF !MsgYesNo("Desea Subir Archivo "+cFile+" en AdaptaPro Server")
+     RETURN .F.
+  ENDIF
+
+  AADD(aTablas,{cFile})
+
+  MsgRun("Subiendo Archivo "+cFile,"Procesando",{|| CursorWait(),lOk:= UP_PERSONALIZA(aTablas)})
+
+  // Guardando para que los demas PC lo recuperen
+  EJECUTAR("UPSAVEAPL",cFile,NIL,NIL,NIL,NIL,NIL,NIL,NIL,NIL,NIL,.T.) // Necesario para ser Recuperado desde otro PC
+
+  IF lOk
+     MsgMemo("Proceso Concluido "+oDp:cMemoUp)
+  ELSE
+     MsgMemo("Proceso no Ejecutado "+oDp:cMemoUp)
+  ENDIF
+
+RETURN

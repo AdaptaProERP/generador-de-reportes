@@ -1,0 +1,46 @@
+// Programa : DPREPORTES
+// Fecha/Hora : 09/03/2004 08:52:42
+// Propósito : EJECUTAR REPORTES
+// Creado Por :
+// Llamado por:
+// Aplicación :
+// Tabla :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(nOption,cCodigo,cScope,cHelp,cFileChm,cTitle)
+ LOCAL oGenRep,oDpLbx
+
+ DEFAULT nOption:=1,cCodigo:=""
+
+
+ oGenRep:=TGENREP():New()
+ oGenRep:IniReport(nOption , cCodigo , nOption=0 )
+
+ oGenRep:cScope :=cScope
+ oGenRep:cHelp :=cHelp 
+ oGenRep:cFileChm:=cFileChm
+
+ IF nOption=4
+
+   oDpLbx:=GetDpLbx(oGenRep:nNumLbx)
+
+   IF oDpLbx:Delete("Desea Borrar Reporte: "+cCodigo,.T.,1,cCodigo) 
+     oGenRep:Delete() // Borra los Archivos
+   ENDIF
+
+   oGenRep:End()
+
+ ENDIF
+
+ IF nOption=0 // Ejecutar
+    oGenRep:cTitle:=cTitle
+    oGenRep:RunWnd()
+ ENDIF
+
+ oDp:oGenRep:=oGenRep
+
+RETURN oGenRep
+// EOF
+
+

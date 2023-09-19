@@ -1,0 +1,46 @@
+// Programa   : REPCRYSTAL_DOWN
+// Fecha/Hora : 29/10/2019 00:23:17
+// Propósito  :
+// Creado Por :
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oRep,cFile)
+   LOCAL cFileBak,cName,cWhere
+
+   DEFAULT cFile:=""
+
+   IF Empty(cFile)
+      RETURN .F.
+   ENDIF
+
+   IF !MsgYesNo("Desea Descargar Archivo "+cFile+" desde AdaptaPro Server")
+     RETURN .F.
+   ENDIF
+
+   cFileBak:=cFile+".bak"
+ 
+   IF FILE(cFile)
+     COPY FILE (cFile) TO (cFileBak)
+   ENDIF
+
+   FERASE(cFile)
+
+   cName :=cFileNoPath(cFile)
+   cWhere:="DIR_FILE"+GetWhere("=",cName)
+
+? cWhere
+
+   MsgRun("Definición Archivo "+cFile+" desde AdaptaPro Server","Descargando",{||lOk:=DPAPTGETPERSONALIZA(cWhere,.F.)})
+
+   IF !FILE(cFile)
+      COPY FILE (cFileBak) TO (cFile)
+   ELSE
+      MsgMemo("Archivo "+cFile+" Descargado desde AdaptaPro Server")
+   ENDIF
+
+RETURN .T.
+// EOF

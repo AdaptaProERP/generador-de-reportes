@@ -1,0 +1,35 @@
+// Programa   : REPCRYSTALUP
+// Fecha/Hora : 20/12/2016 23:42:54
+// Propósito  : Subir reporte Crystal hacia: DPPERSONALIZA, DPAPLDIR
+// Creado Por : Juan Navas
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cFileRpt,lAsk)
+   LOCAL cMemo,nSize
+   LOCAL cFileOut
+
+   DEFAULT lAsk    :=.F.,;
+           cFileRpt:="crystal\dpempresas.rpt"
+
+   cFileRpt:=ALLTRIM(cFileRpt)
+
+   IF lAsk .AND. !MsgYesNo("Desea Almacenar Formato ["+cFileRpt+"] en Tabla de Directorio de Aplicaciones")
+      RETURN .F.
+   ENDIF
+
+   cFileOut:="UPLOAD\"+cFileRpt
+   nSize   :=DIRECTORY(cFileRpt)
+   nSize   :=nSize[1,2]
+
+   COPY FILE(cFileRpt) TO (cFileOut)
+
+   cMemo:=Lower(cFileOut)+" "+LSTR(nSize)+"(Kb)"
+
+   DPSRVUPDATE("LOCAL",nil,nil,nil,cMemo)
+
+RETURN NIL
+// EOF

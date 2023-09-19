@@ -1,0 +1,31 @@
+// Programa   : REPDEVICE
+// Fecha/Hora : 13/04/2004 23:48:02
+// Prop¢sito  : Asignar valores al Dispositivo de Salida
+// Creado Por : Juan Navas
+// Llamado por: TGENREP:SETDEVICE()
+// Aplicaci¢n : Generador de Reportes
+// Tabla      : DPREPORTES
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oReport,oRun)
+
+   IF ValType(oReport)!="O" .OR. ValType(oRun)!="O"
+      RETURN .F.
+   ENDIF
+
+   oReport:cSep:=""
+   oDp:cSep:=CHR(0)
+
+   IF oRun:nOut=12
+     oReport:lBrowse:=.T.
+     oReport:cChar:=CHR(1)
+   ENDIF
+
+// ? oReport:lBrowse,"oReport:lBrowse"
+// ? oReport:cSep,"oReport:cSep",ASC(oReport:cSep)
+// ? oReport:cFile,oRun:nOut,"REPDEVICE"
+// ? oReport:oDevice:ClassName()
+  
+RETURN .T.
+// EOF

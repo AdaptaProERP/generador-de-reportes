@@ -1,0 +1,47 @@
+// Programa   : REPCOMPILA_PC
+// Fecha/Hora : 07/12/2016 13:26:51
+// Propósito  : Recompilar los Reportes en los Demás Reportes
+// Creado Por : Juan Navas
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN()
+  LOCAL oData  :=DATACNF("DPREPORTES","PC")
+  LOCAL cFecha :=oData:Get("cFecha" ,"")
+  LOCAL cFchRep:=SQLGET("DPREPORTES","MAX(CONCAT(REP_FECHA,REP_HORA))")
+  local cWhere,cMin,cMax
+
+  IF Empty(cFecha) 
+     cFecha:=GetWhere("",oDp:dFecha)+TIME()
+     cFecha:=STRTRAN(cFecha,"'","")
+     oData:Set("cFecha",cFecha)
+     oData:Save()
+  ELSE
+     cFecha:=oData:Get("cFecha",cFecha)
+  ENDIF
+
+  IF cFecha<>cFchRep
+     cMin:=DPMIN(cFchRep,cFecha)
+     cMax:=DPMAX(cFchRep,cFecha)
+     cWhere:=GetWhereAnd("CONCAT(REP_FECHA,REP_HORA)",cMin,cMax)
+     EJECUTAR("REPCOMPALL",cWhere)
+     oData:Set("cFecha",cFchRep)
+     oData:Save()
+  ENDIF
+
+  oData:End()
+
+RETURN NIL
+
+FUNCTION DPMIN(cA,cB)
+ IF cA>cB
+    RETURN cB
+ ENDIF
+
+RETURN cA
+
+
+// EOF

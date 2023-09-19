@@ -1,0 +1,84 @@
+// Programa   : REPCLEAN
+// Fecha/Hora : 18/05/2004 01:25:42
+// Prop½sito  : Iniciar los Valores del Rango y/o Criterio
+// Creado Por : Juan Navas
+// Llamado por: Ejecutar Generador de Reporte
+// Aplicaci¢n : Generador de Reportes
+// Tabla      : DPGENREP
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oRun)
+
+    LOCAL oDlg,oRadio1,nCompo:=3,oFontB,oFont
+    LOCAL lDataSet:=.F.
+
+    IF ValType(oRun)!="O"
+      RETURN .F.
+    ENDIF
+
+    IF oRun:oGenRep:nFijar=4 .AND. .F.
+       MensajeErr("Re-Iniciar Reporte "+oRun:oGenRep:REP_CODIGO,"Función no Autorizado")
+       RETURN .F.
+    ENDIF
+
+    DEFINE FONT oFont  NAME "Arial"   SIZE 0, -12
+    DEFINE FONT oFontB NAME "Arial"   SIZE 0, -12 BOLD
+
+    DEFINE DIALOG oDlg TITLE "Re-Iniciar Reporte:  "+oRun:oGenRep:REP_CODIGO FROM 10,10 TO 25,50;
+           COLOR NIL,oDp:nGris
+
+    @ .1 ,.5 GROUP oGrp TO  4, 22 PROMPT " Componentes " FONT oFontB
+
+    @ 1,1 RADIO oRadio1 VAR nCompo;
+        PROMPT "&Rango","&Criterio","&Todos"
+
+    AEVAL(oRadio1:aItems,{|o|o:SetFont(oFont)})
+
+    @ 4.5,.5 CHECKBOX lDataSet PROMPT "Remover Valores previamente Guardados con <Fijar>" FONT oFont
+
+    @ 4.5,14 BUTTON " Aceptar " SIZE 32,15 ACTION (INICIAR(oRun,nCompo,lDataSet),oDlg:End()) FONT oFont
+    @ 4.5,20 BUTTON " Salir   " SIZE 32,15 ACTION oDlg:End() FONT oFont
+
+    ACTIVATE DIALOG oDlg CENTERED
+
+RETURN .T.
+/*
+// Iniciar
+*/
+FUNCION INICIAR(oRun,nCompo,lDataSet)
+    LOCAL I,oData
+    LOCAL cModo  :="ALL",aData:={"PC","USER","ALL","NINGUNO"},cText:="",nFijar:=0
+
+    DEFAULT nCompo:=4
+
+    nFijar :=MAX(oGenRep:nFijar,1)
+    cModo  :=aData[nFijar]
+
+    IF nCompo=1 .OR. nCompo=3
+      FOR I := 1 TO LEN(oRun:oBrwR:aArrayData)
+        oRun:oBrwR:aArrayData[I,2]:=CTOEMPTY(oRun:oBrwR:aArrayData[I,2]) // oRun:oBrwR[I,5]:cType)
+        oRun:oBrwR:aArrayData[I,3]:=CTOEMPTY(oRun:oBrwR:aArrayData[I,3]) // oRun:oBrwR[I,5]:cType)
+      NEXT
+      oRun:oBrwR:Refresh(.T.)
+    ENDIF
+
+    IF nCompo=2 .OR. nCompo=3
+      FOR I := 1 TO LEN(oRun:oBrwC:aArrayData)
+        oRun:oBrwC:aArrayData[I,3]:=CTOEMPTY(oRun:oBrwC:aArrayData[I,3]) // oRun:oBrwR[I,5]:cType)
+      NEXT
+      oRun:oBrwC:Refresh(.T.)
+    ENDIF
+
+    IF lDataSet
+      oData:=DATASET("REPORTE"+oRun:oGenRep:REP_CODIGO,cModo)
+      oData:DelGroup()
+      oData:End(.F.)
+    ENDIF
+
+    // Borra el Compilado y REP para que sea Recompilado
+    ferase(oRun:oGenRep:cFileIni)
+    ferase(STRTRAN(uppe(oRun:oGenRep:cFileIni),".REP",".RXB"))
+
+RETURN NIL
+// EOF

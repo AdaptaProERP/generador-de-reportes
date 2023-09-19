@@ -1,0 +1,171 @@
+// Programa   : REPEXPREP
+// Fecha/Hora : 01/04/2004 16:24:28
+// Prop—sito  : Exportar Reporte
+// Creado Por : Juan Navas
+// Llamado por: Men£ N¢mina
+// Aplicaci¢n : N¢mina
+// Tabla      : DPGENREP
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN()
+  Local cFile:=""
+
+  oExpRep:=DPEDIT():New("Exportar Reporte","forms\RepExpNom.edt","oExpRep",.T.)
+ 
+  oExpRep:nFiles :=0
+  oExpRep:nRecord:=0
+  oExpRep:cDsn   :=oDp:cDsnData
+  oExpRep:oMeterT:=NIL
+  oExpRep:oMeterR:=NIL
+  oExpRep:cDir   :=PADR("a:\",30)
+
+  @ 0,2 SAY "Dsn de Datos "
+  @ 3,2 SAY "Directorio Destino"
+
+  @ 3,2 SAY oExpRep:oSayTable  PROMPT "Tablas"
+  @ 3,2 SAY oExpRep:oSayRecord PROMPT "Registros"
+
+  @ 2,2 SAY oExpRep:cDsn BORDER
+
+  @ 1,1 BMPGET oExpRep:cDir NAME "BITMAPS\FOLDER5.BMP";
+                          ACTION (cDir:=cGetDir(oExpRep:cDir),;
+                          IIF(!EMPTY(cDir),oExpRep:cDir:=PADR(cDir,30),NIL))
+
+  @ 02,01 METER oExpRep:oMeterT VAR oExpRep:nFiles
+  @ 02,01 METER oExpRep:oMeterR VAR oExpRep:nRecord
+
+  @ 6,07 BUTTON "Iniciar " ACTION  oExpRep:ExportDsn(oExpRep:cDsn,oExpRep:cDir,oExpRep)
+
+  @ 6,10 BUTTON "Cerrar  " ACTION (oExpRep:Close()) CANCEL
+
+  oExpRep:Activate(NIL)
+
+Return nil
+
+/*
+// Exporta todos las Tablas del DSN hacia DBF
+*/
+FUNCTION EXPORTDSN(cDsn,cDir,oEdit2)
+   local aTables,oODbc,I,oCursor,lOpen
+   
+   DEFAULT cDsn:="CONFIG32",cDir:="\DPWIN32\DATADBF\"
+
+   cDsn:=alltrim(cDsn)
+   cDir:=alltrim(cDir)
+   cDir:=cDir+IIF(RIGHT(cDir,1)!="\","\","")
+
+   oOdbc  :=OPENODBC(cDsn,NIL,NIL,NIL,NIL,@lOpen) // Apertura del DSN
+
+   IF ValType(oOdbc)!="O" 
+     MsgAlert("ODBC para CONFIG32","No pudo ser Abierto")
+     RETURN .F.
+   ENDIF
+  
+   aTables:={}
+   AADD(aTables,"NMCONCEPTOS")
+   AADD(aTables,"NMCONSTANTES")
+
+   oEdit2:oMeterT:SetTotal(len(aTables))
+
+   For I=1 TO LEN(aTables)
+
+      oEdit2:oSayTable:SetText("Tabla :"+aTables[I])
+      oEdit2:SetMsg("Exportando tabla "+aTables[I])
+      oEdit2:oMeterT:Set(i)
+
+      oCursor :=TDbOdbc():New("SELECT * FROM "+aTables[I] , oODbc )
+      oEdit2:oSayRecord:SetText("Registros :"+ALLTRIM(STR(oCursor:Reccount())))
+
+      ExportDbf(oCursor,cDir+aTables[i],oEdit2:oMeterR,.f.)     
+
+      oCursor:End()
+
+   Next I
+
+   IF lOpen // En caso de Abrir el Dsn debe Cerrarlo
+     oOdbc:End()
+   ENDIF
+
+   oEdit2:SetMsg("Proceso de Exportaci¢n Finalizado")
+
+   CursorArrow()
+ 
+   STORE NIL TO oOdbc,oCursor
+
+RETURN NIL
+
+/*
+// Hace la Conversi—n de Datos hacia DBF
+*/
+FUNCTION ExportDbf(oCursor,cFile,oMeterR,lAsk)
+      LOCAL cRdd:=NIL
+
+      DEFAULT lAsk:=.F.
+
+      IF Empty(cFile)
+          cFile:= cGetFile32("DBF File (*.Dbf) |*.dbf| FileDbf) |*.dbf|","File Dbf ", 1, cFilePath(cFile),.t.)
+      ENDIF
+
+      cFile:=cFile+IIF( !"."$cFile,".dbf" ,"" )
+
+      IF lAsk .AND. FILE(cFile) .AND. !MsgYesNo("Archivo "+cFile+" ya existe","Desea Sobreescribir")
+         Return .F.
+      ENDIF
+
+      If oCursor:RecCount()=0
+         RETURN .F.
+      Endif
+
+      CursorWait()
+
+      FERASE(cFile)
+
+      DBCREATE(cFile,oCursor:aFields,cRdd)
+
+      USE (cFile) VIA "DBFCDX" EXCLU
+      SET ORDE TO 0
+
+      oMeterR:SetTotal(oCursor:RecCount())
+      oMeterR:Set(0)
+      oCursor:GoTop()
+      
+      WHILE !oCursor:Eof()
+
+         oMeterR:Set(oCursor:Recno())
+
+
+         DBAPPEND()  // Agrega un Registro en DBF
+
+         // Grabar registros
+         AEVAL(oCursor:aFields,{|a,i,uValue| uValue:=CheckField(oCursor:FieldGet(i),a[2],.T.), FieldPut(i , uValue)})
+
+         oCursor:Skip(1)
+
+      ENDDO
+
+      oMeterR:Set(oCursor:RecCount())
+
+
+      USE
+
+RETURN .T.
+
+// EOF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,14 @@
+// Programa   : REPCRYSTALOUT
+// Fecha/Hora : 26/05/2019 12:55:13
+// Propósito  : Generar Salida por OLE-AUTO
+// Creado Por : Juan Navas
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep)
+
+// ? "REPCRYSTALOUT", oGenRep:ClassName()
+RETURN .T.

@@ -1,0 +1,96 @@
+// Programa   : REPDEPURA
+// Fecha/Hora : 14/03/2004 10:37:36
+// Prop¢sito  : Depurar Campos y Tablas del Informe
+// Creado Por : Juan Navas
+// Llamado por: TGENREP
+// Aplicaci¢n : Generador de Informes
+// Tabla      : DPREPORT
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oGenRep)
+  LOCAL I:=0,nAt,cLine:="",cTable
+  LOCAL aCampos:={} // Campos V lidos
+  LOCAL aLine 
+
+  IF oGenRep=NIL
+    RETURN NIL
+  ENDIF
+
+  // Depura Campos del Select 
+  WHILE I<LEN(oGenRep:aSelect)
+
+    I     :=I+1
+    cTable:=UPPE(ALLTRIM(oGenRep:aSelect[I,4]))
+    nAt   :=ASCAN(oGenRep:aTablas,{|a,n|ALLTRIM(a)==cTable})
+
+    IF nAt=0
+//       ? I,Len(oGenRep:aSelect),"aSelect"
+       oGenRep:aSelect:=ARREDUCE(oGenRep:aSelect,I)
+//       ADEL(oGenRep:aSelect,I)
+//       ASIZE(oGenRep:aSelect,LEN(oGenRep:aSelect)-1)
+       I:=0 // Empieza de Nuevo
+    ELSE
+       AADD(aCampos,ALLTRIM(oGenRep:aSelect[I,1])+"."+ALLTRIM(oGenRep:aSelect[I,4]))
+    ENDIF
+
+  ENDDO
+
+  // Depura Columnas del Reporte
+  I=0
+  WHILE I<LEN(oGenRep:aCols) .AND. !Empty(oGenRep:aCols)
+     I=I+1
+     cLine:=ALLTRIM(oGenRep:aCols[I,5])+"."+ALLTRIM(oGenRep:aCols[I,6])
+     nAt  :=ASCAN(aCampos,{|a|a==cLine})
+     IF nAt=0 // Excluye el Campo
+       oGenRep:aCols:=ARREDUCE(oGenRep:aCols,I)
+       I:=0 // Empieza de Nuevo
+     ENDIF
+  ENDDO
+
+  // Depura Order By
+  I=0
+  WHILE I<LEN(oGenRep:aOrderBy)
+    I     :=I+1
+    cTable:=UPPE(ALLTRIM(oGenRep:aOrderBy[I,4]))
+    nAt   :=ASCAN(oGenRep:aTablas,{|a|a==cTable}) // Busca la Tabla
+  
+    IF nAt=0 .OR. EMPTY(oGenRep:aOrderBy[I,4])
+       oGenRep:aOrderBy:=ARREDUCE(oGenRep:aOrderBy,I)
+       I:=0 // Empieza de Nuevo
+    ENDIF
+
+  ENDDO
+
+  // Depura Rango
+  I=0
+  WHILE I<LEN(oGenRep:aRango) .AND. !Empty(oGenRep:aRango)
+    I     :=I+1
+    cTable:=UPPE(ALLTRIM(oGenRep:aRango[I,4]))
+    nAt   :=ASCAN(oGenRep:aTablas,{|a|a==cTable}) // Busca la Tabla
+
+    IF nAt=0 .OR. EMPTY(oGenRep:aRango[i,4])
+       oGenRep:aRango:=ARREDUCE(oGenRep:aRango,I)
+       I:=0 // Empieza de Nuevo
+    ENDIF
+
+  ENDDO
+
+  // Depura Criterio
+  I=0
+  WHILE I<LEN(oGenRep:aCriterio) .AND. !EMPTY(oGenRep:aCriterio)
+    I     :=I+1
+    cTable:=UPPE(ALLTRIM(oGenRep:aCriterio[I,4]))
+    nAt   :=ASCAN(oGenRep:aTablas,{|a|a==cTable}) // Busca la Tabla
+
+    IF nAt=0 .OR. EMPTY(oGenRep:aCriterio[i,4])
+       oGenRep:aCriterio:=ARREDUCE(oGenRep:aCriterio,I)
+       I:=0 // Empieza de Nuevo
+    ENDIF
+
+  ENDDO
+
+  oGenRep:GetSql() // Genera C¢digo SQL
+
+RETURN .T.
+// EOF

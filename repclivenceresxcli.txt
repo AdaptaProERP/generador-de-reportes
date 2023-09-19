@@ -1,0 +1,225 @@
+// Programa   : REPCLIVENCERESXCLI
+// Fecha/Hora : 31/05/2017 02:05:20
+// Propósito  : Obtiene Vencimiento Resumido por Ciente
+// Creado Por :
+// Llamado por:
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(cCodSuc,cWhere,dFecha,dDesde,dHasta,dDesdeV,dHastaV,cNumIni,cNumFin)
+
+
+// cCodSuc:=oDp :cSucursal
+
+   oFrm:=DPEDIT():New("Análisis de Vencimiento de CxC","dpcalvence.edt","oFrm",.T.,.F.)
+
+   oFrm:cCodSuc:=cCodSuc
+   oFrm:cWhere :=cWhere
+   oFrm:dFecha :=dFecha
+   oFrm:dDesde :=dDesde
+   oFrm:dHasta :=dHasta
+   oFrm:dDesdeV:=dDesdeV
+   oFrm:dHastaV:=dHastaV
+   oFrm:cNumIni:=cNumIni
+   oFrm:cNumFin:=cNumFin
+   oFrm:nRecord:=0
+   oFrm:cRecord:="0/0"
+   oFrm:cCodigo:=SPACE(10)
+   oFrm:cNombre:=SPACE(150)
+   oFrm:lCancel:=.F.
+
+
+   @ 02,01 SAY "Código  :" RIGHT
+   @ 03,01 SAY "Nombre  :" RIGHT
+   @ 04,01 SAY "Registro:" RIGHT
+
+   @ 02,10 SAY oFrm:oCodigo VAR oFrm:cCodigo
+   @ 03,10 SAY oFrm:oNombre VAR oFrm:cNombre
+   @ 04,10 SAY oFrm:oRecord VAR oFrm:cRecord
+
+   @ 10,01 METER oFrm:oMeter  VAR oFrm:nRecord
+   @ 04,01 BUTTON oFrm:oBtn PROMPT "Cancelar"  ACTION (oFrm:lCancel:=.T.,oFrm:Close()) 
+
+   oFrm:Activate()
+
+   oFrm:DPCALVENCE(oFrm:cCodSuc,oFrm:cWhere,oFrm:dFecha,oFrm:dDesde,oFrm:dHasta,oFrm:dDesdeV,oFrm:dHastaV,oFrm:cNumIni,oFrm:cNumFin)
+
+   IF !oFrm:lCancel
+     oFrm:Close()
+   ENDIF
+
+RETURN oFrm:oTable
+
+PROCE DPCALVENCE(cCodSuc,cWhere,dFecha,dDesde,dHasta,dDesdeV,dHastaV,cNumIni,cNumFin)
+  LOCAL oTable,aTotal,cWhereD:="",cSql
+
+  IF cCodSuc=NIL
+     PUBLICO("RGO_C2",oDp:nVenceCli1)
+     PUBLICO("RGO_C3",oDp:nVenceCli2)
+     PUBLICO("RGO_C4",oDp:nVenceCli3)
+     PUBLICO("RGO_C5",oDp:nVenceCli4)
+     PUBLICO("RGO_C6",oDp:nVenceCli5)
+  ENDIF
+
+  DEFAULT cCodSuc:="",;
+          dFecha :=oDp:dFecha
+
+  DEFAULT cWhere:=""
+
+//? cCodSuc,cWhere,dFecha,dDesde,dHasta,dDesdeV,dHastaV,cNumIni,cNumFin
+
+  IF !Empty(cNumIni)
+     cWhereD:=cWhereD+IF(Empty(cWhereD),""," AND ")+GetWhereAnd("DOC_NUMERO",cNumIni,cNumFin)
+  ENDIF
+
+  IF !Empty(dDesde)
+     cWhereD:=cWhereD+IF(Empty(cWhereD),""," AND ")+GetWhereAnd("DOC_FECHA",dDesde,dHasta)
+  ENDIF
+
+  IF !Empty(dDesdeV)
+     cWhereD:=cWhereD+IF(Empty(cWhereD),""," AND ")+GetWhereAnd("DOC_FCHVEN",dDesdeV,dHastaV)
+  ENDIF
+
+  // Utiliza vista por Sucursal
+  IF !Empty(cCodSuc)
+
+     cWhere:="CXC_CODSUC"+GetWhere("=",cCodSuc)+;
+              IIF(Empty(cWhere),""," AND ")+cWhere
+
+  ENDIF
+
+  IF !Empty(cWhere) 
+    cWhere:=" WHERE "+cWhere
+  ENDIF
+
+
+  CursorWait()
+
+  oFrm:oNombre:SetText("Leyendo Clientes")
+
+  IF Empty(cCodSuc)
+    cSql:="SELECT CXC_CODIGO AS DOC_CODIGO,CXC_NOMBRE AS CLI_NOMBRE FROM VIEW_CXCXCLI "+cWhere
+  ELSE
+    cSql:="SELECT CXC_CODIGO AS DOC_CODIGO,CXC_NOMBRE AS CLI_NOMBRE FROM VIEW_CXCCLIXSUC "+cWhere
+  ENDIF
+
+  oTable:=OpenTable(cSql,.T.)
+
+  oTable:Replace("DOC_PORVEN",0)
+  oTable:Replace("DOC_VENCE1",0)
+  oTable:Replace("DOC_VENCE2",0)
+  oTable:Replace("DOC_VENCE3",0)
+  oTable:Replace("DOC_VENCE4",0)
+  oTable:Replace("DOC_VENCE5",0)
+  oTable:Replace("DOC_TOTVEN",0)
+  oTable:Replace("DOC_SALDO" ,0)
+  oTable:Replace("CUANTOS"   ,0)
+  oTable:Replace("DOC_DESDE" ,CTOD(""))
+  oTable:Replace("DOC_HASTA" ,CTOD(""))
+
+  //oTable:Browse()
+
+  oFrm:oMeter:SetTotal(oTable:RecCount())
+
+  WHILE !oTable:Eof() .AND. !oFrm:lCancel
+
+      oFrm:oCodigo:SetText(oTable:DOC_CODIGO)
+      oFrm:oNombre:SetText(oTable:CLI_NOMBRE)
+      oFrm:oMeter:Set(oTable:RecNo())
+      oFrm:oRecord:SetText(LSTR(oTable:Recno())+"/"+LSTR(oTable:RecCount()))
+ 
+      aTotal :=CALCULAVENC(oTable:DOC_CODIGO,cCodSuc,dFecha,RGO_C2,RGO_C3,RGO_C4,RGO_C5,RGO_C6,cWhereD)
+
+      oTable:Replace("DOC_PORVEN",aTotal[01])
+      oTable:Replace("DOC_VENCE1",aTotal[02])
+      oTable:Replace("DOC_VENCE2",aTotal[03])
+      oTable:Replace("DOC_VENCE3",aTotal[04])
+      oTable:Replace("DOC_VENCE4",aTotal[05])
+      oTable:Replace("DOC_VENCE5",aTotal[06])
+      oTable:Replace("DOC_TOTVEN",aTotal[07])
+      oTable:Replace("DOC_SALDO" ,aTotal[08])
+      oTable:Replace("CUANTOS"   ,aTotal[09])
+      oTable:Replace("DOC_DESDE" ,aTotal[10])
+      oTable:Replace("DOC_HASTA" ,aTotal[11])
+      oTable:DbSkip()
+
+      SysRefresh(.T.)
+
+  ENDDO
+
+  ADEPURA(oTable:aDataFill,{|a,n| Empty(a[11]) })
+
+  oFrm:oTable:=oTable
+//? "CERRAR",oFrm:ClassName()
+//? ErrorSys(.T.)
+//  oFrm:Close()
+// oTable:Browse()
+// oTable:End()
+  
+RETURN oTable
+
+
+FUNCTION CALCULAVENC(cCodCli,cCodSuc,dFecha,RGO_C2,RGO_C3,RGO_C4,RGO_C5,RGO_C6,cWhereD)
+  LOCAL cSql,aData:={},oCursor,nSaldo:=0
+  LOCAL aTotal:={},nTotVen:=0,dDesde:=CTOD(""),dHasta:=CTOD("")
+
+  cSql:=" SELECT DPDOCCLI.DOC_FCHVEN,TO_DAYS(DOC_FECHA)-TO_DAYS(DOC_FCHVEN) AS DOC_DIASVE,CXD_NETO AS DOC_NETO"+;
+        " FROM DPDOCCLI "+;
+        " INNER JOIN VIEW_DOCCLICXC ON DOC_CODSUC=CXD_CODSUC AND DOC_TIPDOC=CXD_TIPDOC AND DOC_NUMERO=CXD_NUMERO "+;                    
+        " WHERE "+;
+        IF(Empty(cCodSuc),""," DOC_CODSUC"+GetWhere("=",cCodSuc)+" AND ")+;
+        " DOC_CODIGO"+GetWhere("=",cCodCli)+" AND "+;
+        " DOC_TIPTRA"+GetWhere("=","D")+ IF(Empty(cWhereD),""," AND ")+cWhereD
+
+   oCursor:=OpenTable(cSql,.T.)
+
+   oCursor:Replace("DOC_PORVEN",0)
+   oCursor:Replace("DOC_VENCE1",0)
+   oCursor:Replace("DOC_VENCE2",0)
+   oCursor:Replace("DOC_VENCE3",0)
+   oCursor:Replace("DOC_VENCE4",0)
+   oCursor:Replace("DOC_VENCE5",0)
+   oCursor:Replace("DOC_TOTVEN",0)
+   oCursor:Replace("DOC_SALDO" ,0)
+   oCursor:Replace("CUANTOS"   ,0)
+   oCursor:Replace("DOC_DESDE" ,CTOD(""))
+   oCursor:Replace("DOC_HASTA" ,CTOD(""))
+
+   oCursor:GoTop()
+
+   WHILE !oCursor:Eof()
+
+     nSaldo:=nSaldo+oCursor:DOC_NETO
+
+     oCursor:Replace("DOC_FCHVEN",IIF(Empty(oCursor:DOC_FCHVEN),oCursor:DOC_FECHA,oCursor:DOC_FCHVEN))
+     oCursor:Replace("DOC_DIASVE",oDp:dFecha-oCursor:DOC_FCHVEN)
+     oCursor:Replace("DOC_VENCE1",IIF(oCursor:DOC_DIASVE>RGO_C2 .AND. oCursor:DOC_DIASVE<=RGO_C3, oCursor:DOC_NETO , oCursor:DOC_VENCE1))
+     oCursor:Replace("DOC_VENCE2",IIF(oCursor:DOC_DIASVE>RGO_C3 .AND. oCursor:DOC_DIASVE<=RGO_C4, oCursor:DOC_NETO , oCursor:DOC_VENCE2))
+     oCursor:Replace("DOC_VENCE3",IIF(oCursor:DOC_DIASVE>RGO_C4 .AND. oCursor:DOC_DIASVE<=RGO_C5, oCursor:DOC_NETO , oCursor:DOC_VENCE3))
+     oCursor:Replace("DOC_VENCE4",IIF(oCursor:DOC_DIASVE>RGO_C5 .AND. oCursor:DOC_DIASVE<=RGO_C6, oCursor:DOC_NETO , oCursor:DOC_VENCE4))
+     oCursor:Replace("DOC_VENCE5",IIF(oCursor:DOC_DIASVE>RGO_C6 , oCursor:DOC_NETO , oCursor:DOC_VENCE5))
+     oCursor:Replace("DOC_PORVEN",IIF(oCursor:DOC_DIASVE<=RGO_C2, oCursor:DOC_NETO , 0 ))
+     oCursor:Replace("DOC_SALDO" ,nSaldo)
+
+     dDesde:=IF(Empty(dDesde),oCursor:DOC_FCHVEN,dDesde)
+     dDesde:=MIN(oCursor:DOC_FCHVEN,dDesde)
+     dHasta:=MAX(oCursor:DOC_FCHVEN,dHasta)
+     nTotVen:=nTotVen:=oCursor:DOC_VENCE1+oCursor:DOC_VENCE2+oCursor:DOC_VENCE3+oCursor:DOC_VENCE4+oCursor:DOC_VENCE5
+
+     nSaldo :=nTotVen+oCursor:DOC_PORVEN // Total Deuda=Vencido+PorVencer
+
+     AADD(aTotal,{oCursor:DOC_PORVEN,oCursor:DOC_VENCE1,oCursor:DOC_VENCE2,oCursor:DOC_VENCE3,oCursor:DOC_VENCE4,oCursor:DOC_VENCE5,nTotVen,nSaldo,1})
+
+     oCursor:DbSkip()
+  ENDDO
+
+  aTotal:=ATOTALES(aTotal)
+
+  AADD(aTotal,dDesde)
+  AADD(aTotal,dHasta)
+
+RETURN aTotal
+// ATOTALES(aTotal)
+// EOF

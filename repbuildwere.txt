@@ -1,0 +1,79 @@
+// Programa   : REPWHEREOPTZ
+// Fecha/Hora : 24/09/2009 22:54:55
+// Propósito  : Optimizar Consultas SQL
+// Creado Por : Juan Navas
+// Llamado por: REPBUILDWERE
+// Aplicación :
+// Tabla      :
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(aFields,cTabla)
+   LOCAL aIndex:={},I,nAt,aClave:={},aNew:={}
+
+   DEFAULT cTabla:="DPDOCCLI"
+
+
+   IF Empty(aFields)
+
+      aFields:={}
+      AADD(aFields,{"DOC_NUMERO","",""})
+      AADD(aFields,{"DOC_TIPDOC","",""})
+      AADD(aFields,{"DOC_CODSUC","",""})
+         
+   ENDIF
+
+   aIndex:=ASQL("SELECT IND_CLAVE FROM DPINDEX WHERE IND_TABLA"+GetWhere("=",cTabla))
+ 
+   IF Empty(aIndex)
+      RETURN aFields
+   ENDIF
+
+   AEVAL(aIndex,{|a,n| AADD(aIndex[n],0) })
+
+   // Buscamos en cual de los Indices hay mayor Coindencia en los Campos
+
+   FOR I=1 TO LEN(aFields)
+
+      nAt    :=ASCAN(aIndex,{|a,n| aFields[I,1]$a[1] })
+
+      IF nAt>0
+         aIndex[nAt,2]:=aIndex[nAt,2]+1
+      ENDIF
+
+   NEXT I
+
+   // Ordenamos de Menor hacia mayor y el Ultimo es quie tiene la Mayor Cantidad
+   // de Coincidencias.
+
+   aIndex:=ASORT(aIndex,,, { |x, y| x[2] < y[2] }) 
+   aIndex:=ATAIL(aIndex)
+
+   // No hay Indices Asociados con el Campo
+   IF Empty(aIndex[2])
+      RETURN aFields
+   ENDIF
+
+   // Ahora, Ordenamos los Campos Segun el indice
+   aClave:=_VECTOR(aIndex[1])
+   cTabla:=""
+
+   FOR I=1 TO LEN(aClave)
+
+      nAt:=ASCAN(aFields,{|a,n|a[1]=aClave[I]})
+
+      IF nAt>0
+        AADD(aNew,aFields[nAt])
+        cTabla:=cTabla+IIF( Empty(cTabla), "" ,",")+aFields[nAt,1]
+      ENDIF
+
+   NEXT I
+
+   AEVAL( aNew,{|a,n| AADD(aNew[n],aIndex[1]) })
+
+// ? aIndex[1],aIndex[2],LEN(aNew),cTabla
+//   ViewArray(aIndex)
+// ViewArray(aNew)
+
+RETURN aNew
+// EOF

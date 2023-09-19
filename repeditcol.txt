@@ -1,0 +1,20 @@
+// Programa   : REPEDITCOL
+// Fecha/Hora : 13/03/2004 22:54:48
+// Prop¢sito  : Editar Columnas del Informe
+// Creado Por : Juan Navas
+// Llamado por: TCOL()
+// Aplicaci¢n : Generador de Informes
+// Tabla      : DPREPORTES
+
+#INCLUDE "DPXBASE.CH"
+
+PROCE MAIN(oCol)
+
+    IF oCol=NIL
+      RETURN NIL
+    ENDIF
+
+    MsgAlert("EDITCOL")
+
+RETURN .T.
+// EOF
